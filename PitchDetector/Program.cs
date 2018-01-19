@@ -85,7 +85,7 @@ namespace PitchDetector
                         if (count == 0) return;
                         readSamples += count;
                     }
-                    var pitch = PitchMathNet.EstimatePitch(rate, data);
+                    var pitch = PitchAccord.EstimatePitch(rate, data);
                     if (pitch.HasValue) history.AddLast(pitch.Value);
                 }
 
@@ -101,7 +101,7 @@ namespace PitchDetector
                         readSamples += count;
                     }
 
-                    var pitch = PitchMathNet.EstimatePitch(rate, data);
+                    var pitch = PitchAccord.EstimatePitch(rate, data);
 
                     if (pitch.HasValue)
                     {

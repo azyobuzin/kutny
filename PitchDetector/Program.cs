@@ -27,14 +27,14 @@ namespace PitchDetector
 
         private static void Run()
         {
-            Mfcc();
+            ClassifyVowel();
         }
 
         private static void BasicTest()
         {
-            const int samples = 1024;
+            const int windowSize = 1024;
             int rate;
-            var data = new float[samples];
+            var data = new float[windowSize];
 
             // 2.5sのところから1024サンプル取得してくる
             using (var reader = new WaveFileReader(Path.Combine(GetTrainingDataDirectory(), "あいうえお 2017-12-18 00-17-09.wav")))
@@ -65,7 +65,7 @@ namespace PitchDetector
 
         private static void PitchGraph()
         {
-            const int samples = 1024;
+            const int windowSize = 1024;
 
             var series = new ScatterSeries();
 
@@ -76,7 +76,7 @@ namespace PitchDetector
 
                 var history = new LinkedList<float>();
 
-                var data = new float[samples];
+                var data = new float[windowSize];
                 {
                     // 1 回目
                     for (var readSamples = 0; readSamples < data.Length;)
@@ -89,12 +89,12 @@ namespace PitchDetector
                     if (pitch.HasValue) history.AddLast(pitch.Value);
                 }
 
-                for (var i = samples; ; i += samples / 2)
+                for (var i = windowSize; ; i += windowSize / 2)
                 {
                     // 半分ずらして読み出し
-                    Array.Copy(data, samples / 2, data, 0, samples / 2);
+                    Array.Copy(data, windowSize / 2, data, 0, windowSize / 2);
 
-                    for (var readSamples = samples / 2; readSamples < data.Length;)
+                    for (var readSamples = windowSize / 2; readSamples < data.Length;)
                     {
                         var count = provider.Read(data, readSamples, data.Length - readSamples);
                         if (count == 0) goto Show;
@@ -132,11 +132,11 @@ namespace PitchDetector
 
         private static void Mfcc()
         {
-            const int samples = 2048;
+            const int windowSize = 2048;
             int rate;
-            var data = new float[samples];
+            var data = new float[windowSize];
 
-            // 2.5sのところから1024サンプル取得してくる
+            // 2.5s のところから 2048 サンプル取得してくる
             using (var reader = new WaveFileReader(Path.Combine(GetTrainingDataDirectory(), "あいうえお 2017-12-18 00-17-09.wav")))
             {
                 var provider = reader.ToSampleProvider()
@@ -153,8 +153,45 @@ namespace PitchDetector
                 }
             }
 
-            foreach (var x in MfccAccord.ComputeMfcc12D(rate, data))
+            var mfcc = new MfccAccord(rate, windowSize);
+            foreach (var x in mfcc.ComputeMfcc12D(data))
                 Console.WriteLine(x);
+        }
+
+        private static void ClassifyVowel()
+        {
+            var classifier = new VowelClassifier();
+
+            var dir = GetTrainingDataDirectory();
+            classifier.AddTrainingDataAsync(Path.Combine(dir, "あいうえお 2017-12-18 00-17-09.csv")).Wait();
+
+            classifier.Learn();
+
+            {
+                // 識別テスト
+                const int windowSize = 2048;
+                int rate;
+                var data = new float[windowSize];
+
+                using (var reader = new WaveFileReader(Path.Combine(dir, "あいうえお 2018-01-20 16-48-52.wav")))
+                {
+                    var provider = reader.ToSampleProvider()
+                        .Skip(TimeSpan.FromSeconds(24))
+                        .ToMono();
+
+                    rate = provider.WaveFormat.SampleRate;
+
+                    for (var readSamples = 0; readSamples < data.Length;)
+                    {
+                        var delta = provider.Read(data, readSamples, data.Length - readSamples);
+                        if (delta == 0) throw new EndOfStreamException();
+                        readSamples += delta;
+                    }
+                }
+
+                var mfcc = new MfccAccord(rate, windowSize).ComputeMfcc12D(data);
+                Console.WriteLine(classifier.Decide(mfcc));
+            }
         }
 
         public static void ShowPlot(PlotModel plot)

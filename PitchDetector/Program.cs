@@ -1,11 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Threading;
 using NAudio.Wave;
 using OxyPlot;
+using OxyPlot.Axes;
 using OxyPlot.Series;
 
 namespace PitchDetector
@@ -27,7 +30,7 @@ namespace PitchDetector
 
         private static void Run()
         {
-            ClassifyVowel();
+            PitchAndLyric();
         }
 
         private static void BasicTest()
@@ -60,7 +63,7 @@ namespace PitchDetector
             //    data[i] = (float)Math.Sin(2 * Math.PI * 440 * i / rate);
             //}
 
-            Console.WriteLine("{0} Hz", PitchAccord.EstimatePitch(rate, data));
+            Console.WriteLine("{0} Hz", PitchAccord.EstimateBasicFrequency(rate, data));
         }
 
         private static void PitchGraph()
@@ -74,7 +77,7 @@ namespace PitchDetector
                 var provider = reader.ToSampleProvider().ToMono();
                 var rate = provider.WaveFormat.SampleRate;
 
-                var history = new LinkedList<float>();
+                var history = new LinkedList<double>();
 
                 var data = new float[windowSize];
                 {
@@ -85,7 +88,7 @@ namespace PitchDetector
                         if (count == 0) return;
                         readSamples += count;
                     }
-                    var pitch = PitchAccord.EstimatePitch(rate, data);
+                    var pitch = PitchAccord.EstimateBasicFrequency(rate, data);
                     if (pitch.HasValue) history.AddLast(pitch.Value);
                 }
 
@@ -101,7 +104,7 @@ namespace PitchDetector
                         readSamples += count;
                     }
 
-                    var pitch = PitchAccord.EstimatePitch(rate, data);
+                    var pitch = PitchAccord.EstimateBasicFrequency(rate, data);
 
                     if (pitch.HasValue)
                     {
@@ -115,8 +118,7 @@ namespace PitchDetector
                             Array.Sort(h);
                             var med = h[h.Length / 2];
 
-                            var note = Math.Round(69.0 + 12.0 * Math.Log(med / 440.0, 2.0));
-                            series.Points.Add(new ScatterPoint((double)i / rate, note));
+                            series.Points.Add(new ScatterPoint((double)i / rate, HzToMidiNote(med)));
                         }
                     }
                 }
@@ -128,6 +130,11 @@ namespace PitchDetector
                 Title = "ピッチ",
                 Series = { series }
             });
+        }
+
+        private static int HzToMidiNote(double f)
+        {
+            return (int)Math.Round(69.0 + 12.0 * Math.Log(f / 440.0, 2.0));
         }
 
         private static void Mfcc()
@@ -158,40 +165,178 @@ namespace PitchDetector
                 Console.WriteLine(x);
         }
 
-        private static void ClassifyVowel()
+        private static VowelClassifier PrepareVowelClassifier()
         {
             var classifier = new VowelClassifier();
-
             var dir = GetTrainingDataDirectory();
-            classifier.AddTrainingDataAsync(Path.Combine(dir, "あいうえお 2017-12-18 00-17-09.csv")).Wait();
+
+            Task.WaitAll(
+                classifier.AddTrainingDataAsync(Path.Combine(dir, "あいうえお 2017-12-18 00-17-09.csv")),
+                classifier.AddTrainingDataAsync(Path.Combine(dir, "あいうえお 2018-01-20 16-48-52.csv"))
+            );
 
             classifier.Learn();
 
+            return classifier;
+        }
+
+        private static void ClassifyVowel()
+        {
+            var classifier = PrepareVowelClassifier();
+
+            // 識別テスト
+            const int windowSize = 2048;
+            int rate;
+            var data = new float[windowSize];
+
+            using (var reader = new WaveFileReader(Path.Combine(GetTrainingDataDirectory(), "校歌 2018-01-17 15-10-46.wav")))
             {
-                // 識別テスト
-                const int windowSize = 2048;
-                int rate;
-                var data = new float[windowSize];
+                var provider = reader.ToSampleProvider()
+                    .Skip(TimeSpan.FromSeconds(11))
+                    .ToMono();
 
-                using (var reader = new WaveFileReader(Path.Combine(dir, "あいうえお 2018-01-20 16-48-52.wav")))
+                rate = provider.WaveFormat.SampleRate;
+
+                for (var readSamples = 0; readSamples < data.Length;)
                 {
-                    var provider = reader.ToSampleProvider()
-                        .Skip(TimeSpan.FromSeconds(24))
-                        .ToMono();
+                    var delta = provider.Read(data, readSamples, data.Length - readSamples);
+                    if (delta == 0) throw new EndOfStreamException();
+                    readSamples += delta;
+                }
+            }
 
-                    rate = provider.WaveFormat.SampleRate;
+            var mfcc = new MfccAccord(rate, windowSize).ComputeMfcc12D(data);
+            Console.WriteLine(classifier.Decide(mfcc));
+        }
 
-                    for (var readSamples = 0; readSamples < data.Length;)
+        private static void PitchAndLyric()
+        {
+            float[] samples;
+            int rate;
+
+            using (var wavReader = new WaveFileReader(Path.Combine(GetTrainingDataDirectory(), "校歌 2018-01-17 15-10-46.wav")))
+            {
+                var provider = wavReader.ToSampleProvider().ToMono();
+                rate = provider.WaveFormat.SampleRate;
+
+                samples = new float[wavReader.SampleCount];
+                for (var readSamples = 0; readSamples < samples.Length;)
+                {
+                    var count = provider.Read(samples, readSamples, samples.Length - readSamples);
+                    if (count == 0) break;
+                    readSamples += count;
+                }
+            }
+
+            const int analysisUnit = 4096; // 4096 サンプルを 1 まとまりとする
+            const int vowelWindowSize = 2048;
+            const int pitchWindowSize = 1024;
+
+            var classifier = PrepareVowelClassifier();
+            var mfccComputer = new MfccAccord(rate, vowelWindowSize);
+            var series = new IntervalBarSeries();
+            var secsPerAnalysisUnit = (double)analysisUnit / rate;
+            var analysisUnitCount = samples.Length / analysisUnit;
+
+            for (var i = 0; i < analysisUnitCount; i++)
+            {
+                var startIndex = analysisUnit * i;
+                var endIndex = startIndex + analysisUnit;
+
+                var maxPower = 0f;
+                for (var j = startIndex + 1; j < endIndex - 1; j++)
+                {
+                    if (samples[j] > maxPower)
+                        maxPower = samples[j];
+                }
+
+                // 音量小さすぎ
+                if (maxPower < 0.15) continue;
+
+                // 512 ずつずらしながら母音認識
+                var vowelCandidates = new int[(int)VowelType.Other + 1];
+                for (var offset = startIndex; offset <= endIndex - vowelWindowSize; offset += 512)
+                {
+                    var mfcc = mfccComputer.ComputeMfcc12D(new ReadOnlySpan<float>(samples, offset, vowelWindowSize));
+                    vowelCandidates[(int)classifier.Decide(mfcc)]++;
+                }
+
+                var vowelCandidate = default(VowelType?);
+                var maxNumOfVotes = 0;
+                for (var j = 0; j < vowelCandidates.Length; j++)
+                {
+                    if (vowelCandidates[j] > maxNumOfVotes)
                     {
-                        var delta = provider.Read(data, readSamples, data.Length - readSamples);
-                        if (delta == 0) throw new EndOfStreamException();
-                        readSamples += delta;
+                        maxNumOfVotes = vowelCandidates[j];
+                        vowelCandidate = (VowelType)j;
+                    }
+                    else if (vowelCandidates[j] == maxNumOfVotes)
+                    {
+                        vowelCandidate = null;
                     }
                 }
 
-                var mfcc = new MfccAccord(rate, windowSize).ComputeMfcc12D(data);
-                Console.WriteLine(classifier.Decide(mfcc));
+                // 母音が定まらなかったので、終了
+                if (!vowelCandidate.HasValue || vowelCandidate.Value == VowelType.Other)
+                    continue;
+
+                // 512 ずつずらしながらピッチ検出
+                const int pitchOffsetDelta = 512;
+                var basicFreqs = new List<double>(analysisUnit / pitchOffsetDelta);
+                for (var offset = startIndex; offset <= endIndex - pitchWindowSize; offset += pitchOffsetDelta)
+                {
+                    var f = PitchAccord.EstimateBasicFrequency(
+                        rate,
+                        new ReadOnlySpan<float>(samples, offset, pitchWindowSize)
+                    );
+
+                    if (f.HasValue) basicFreqs.Add(f.Value);
+                }
+
+                // ピッチ検出に失敗したので終了
+                if (basicFreqs.Count == 0) continue;
+
+                basicFreqs.Sort();
+                var basicFreq = basicFreqs[basicFreqs.Count / 2]; // 中央値
+                var noteNum = HzToMidiNote(basicFreq);
+
+
+                var plotItem = new IntervalBarItem()
+                {
+                    Start = secsPerAnalysisUnit * i,
+                    End = secsPerAnalysisUnit * (i + 1),
+                    Title = vowelCandidate.ToString(),
+                    CategoryIndex = noteNum
+                };
+
+                var items = series.Items;
+                if (items.Count > 0)
+                {
+                    var lastItem = items[items.Count - 1];
+                    if (lastItem.End == plotItem.Start
+                        && lastItem.CategoryIndex == plotItem.CategoryIndex
+                        && lastItem.Title == plotItem.Title)
+                    {
+                        // マージできる
+                        lastItem.End = plotItem.End;
+                        continue;
+                    }
+                }
+
+                items.Add(plotItem);
             }
+
+            var categoryAxis = new CategoryAxis() { Position = AxisPosition.Left };
+            var noteNames = new[] { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+            for (var i = 0; i <= 127; i++)
+                categoryAxis.Labels.Add(noteNames[i % 12] + (i / 12).ToString(CultureInfo.InvariantCulture));
+
+            ShowPlot(new PlotModel()
+            {
+                Title = "ピッチと母音",
+                Axes = { categoryAxis },
+                Series = { series }
+            });
         }
 
         public static void ShowPlot(PlotModel plot)

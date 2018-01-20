@@ -9,7 +9,7 @@ namespace PitchDetector
 {
     public static class PitchAccord
     {
-        public static float? EstimatePitch(int sampleRate, ReadOnlySpan<float> samples)
+        public static double? EstimateBasicFrequency(int sampleRate, ReadOnlySpan<float> samples)
         {
             // SDF
             // 1. zero pad
@@ -79,7 +79,7 @@ namespace PitchDetector
 
             var threshold = maxCorrelation * 0.8;
             var delay = peaks.Find(x => x.Correlation >= threshold).Delay;
-            return (float)sampleRate / delay;
+            return (double)sampleRate / delay;
         }
 
         [StructLayout(LayoutKind.Auto)]

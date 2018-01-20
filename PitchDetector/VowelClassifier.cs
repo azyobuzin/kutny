@@ -13,7 +13,7 @@ namespace PitchDetector
     public class VowelClassifier
     {
         private readonly List<(double[], VowelType)> _trainingData = new List<(double[], VowelType)>();
-        private readonly MulticlassSupportVectorLearning<Gaussian> _teacher = new MulticlassSupportVectorLearning<Gaussian>();
+        private readonly MulticlassSupportVectorLearning<Linear> _teacher = new MulticlassSupportVectorLearning<Linear>();
 
         public Task AddTrainingDataAsync(string csvFileName)
         {
@@ -46,6 +46,9 @@ namespace PitchDetector
                 {
                     var time = double.Parse(csvReader["Time"], CultureInfo.InvariantCulture);
                     var vowelType = ParseVowelType(csvReader["Class"]);
+
+                    // どうしよう
+                    if (vowelType == VowelType.Other) continue;
 
                     // 並列でばんばか投げていくぞ
                     tasks.Add(Task.Run(() =>
@@ -99,12 +102,12 @@ namespace PitchDetector
 
     public enum VowelType
     {
-        Other,
         A,
         I,
         U,
         E,
         O,
         N,
+        Other
     }
 }

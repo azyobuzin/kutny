@@ -10,9 +10,9 @@ using OxyPlot.Series;
 
 namespace PitchDetector
 {
-    class Program
+    public static class Program
     {
-        static Dispatcher s_dispatcher;
+        private static Dispatcher s_dispatcher;
 
         [STAThread]
         static void Main(string[] args)
@@ -25,19 +25,19 @@ namespace PitchDetector
             app.Run();
         }
 
-        static void Run()
+        private static void Run()
         {
             Mfcc();
         }
 
-        static void BasicTest()
+        private static void BasicTest()
         {
             const int samples = 1024;
             int rate;
             var data = new float[samples];
 
             // 2.5sのところから1024サンプル取得してくる
-            using (var reader = new WaveFileReader(@"E:\azyobuzin\GoogleDrive\音声録音 2017-12-18 00-17-09.wav"))
+            using (var reader = new WaveFileReader(Path.Combine(GetTrainingDataDirectory(), "あいうえお 2017-12-18 00-17-09.wav")))
             {
                 var provider = reader.ToSampleProvider()
                     .Skip(TimeSpan.FromSeconds(2.5))
@@ -63,13 +63,13 @@ namespace PitchDetector
             Console.WriteLine("{0} Hz", PitchAccord.EstimatePitch(rate, data));
         }
 
-        static void PitchGraph()
+        private static void PitchGraph()
         {
             const int samples = 1024;
 
             var series = new ScatterSeries();
 
-            using (var reader = new WaveFileReader(@"E:\azyobuzin\GoogleDrive\音声録音 2018-01-17 15-10-46.wav"))
+            using (var reader = new WaveFileReader(Path.Combine(GetTrainingDataDirectory(), "校歌 2018-01-17 15-10-46.wav")))
             {
                 var provider = reader.ToSampleProvider().ToMono();
                 var rate = provider.WaveFormat.SampleRate;
@@ -130,14 +130,14 @@ namespace PitchDetector
             });
         }
 
-        static void Mfcc()
+        private static void Mfcc()
         {
             const int samples = 2048;
             int rate;
             var data = new float[samples];
 
             // 2.5sのところから1024サンプル取得してくる
-            using (var reader = new WaveFileReader(@"E:\azyobuzin\GoogleDrive\音声録音 2017-12-18 00-17-09.wav"))
+            using (var reader = new WaveFileReader(Path.Combine(GetTrainingDataDirectory(), "あいうえお 2017-12-18 00-17-09.wav")))
             {
                 var provider = reader.ToSampleProvider()
                     .Skip(TimeSpan.FromSeconds(2.5))
@@ -171,6 +171,25 @@ namespace PitchDetector
 
                 window.Show();
             });
+        }
+
+        private static string GetTrainingDataDirectory()
+        {
+            const string directoryName = "TrainingData";
+
+            var inCurrentDir = Path.Combine(Directory.GetCurrentDirectory(), directoryName);
+            if (Directory.Exists(inCurrentDir)) return inCurrentDir;
+
+            // アセンブリの場所からさかのぼってみる
+            for (var path = Path.GetDirectoryName(typeof(Program).Assembly.Location);
+                path != null;
+                path = Path.GetDirectoryName(path))
+            {
+                var dir = Path.Combine(path, directoryName);
+                if (Directory.Exists(dir)) return dir;
+            }
+
+            throw new DirectoryNotFoundException(directoryName + " ディレクトリが見つかりませんでした。");
         }
     }
 }

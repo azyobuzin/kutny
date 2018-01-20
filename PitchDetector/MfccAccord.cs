@@ -59,6 +59,15 @@ namespace PitchDetector
             const int resultDimension = 12;
             var result = new double[resultDimension];
             Array.Copy(filtered, 1, result, 0, resultDimension);
+
+            // 逆変換結果を表示
+            //var inv = new double[resultDimension + 1];
+            //Array.Copy(result, 0, inv, 1, resultDimension);
+            //CosineTransform.IDCT(inv);
+            //var invSeries = new LineSeries() { MarkerType = MarkerType.Circle };
+            //invSeries.Points.AddRange(inv.Select((x, i) => new DataPoint(MelToHz(HzToMel(lowerHz) + HzToMel(upperHz - lowerHz) / (resultDimension + 1) * (i + 1)), x)));
+            //Program.ShowPlot(new PlotModel() { Title = "逆変換", Series = { invSeries } });
+
             return result;
         }
 

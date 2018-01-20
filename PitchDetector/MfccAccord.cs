@@ -58,7 +58,7 @@ namespace PitchDetector
 
             const int resultDimension = 12;
             var result = new double[resultDimension];
-            Array.Copy(filtered, result, resultDimension);
+            Array.Copy(filtered, 1, result, 0, resultDimension);
             return result;
         }
 

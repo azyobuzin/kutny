@@ -132,7 +132,7 @@ namespace PitchDetector
 
         static void Mfcc()
         {
-            const int samples = 1024;
+            const int samples = 2048;
             int rate;
             var data = new float[samples];
 

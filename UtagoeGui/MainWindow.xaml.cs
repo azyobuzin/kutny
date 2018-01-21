@@ -22,18 +22,21 @@ namespace UtagoeGui
         }
 
         private static readonly string[] s_noteNames = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+        private const int AnalysisUnit = 4096;
 
         private readonly OpenFileDialog _openFileDialog = new OpenFileDialog()
         {
             Filter = "すべてのファイル|*"
         };
 
-        private double _unitWidth = 10;
         private const double MinUnitWidth = 3;
-
+        private double _unitWidth = 10;
         private int _unitCount;
 
         private Task<VowelClassifier> _vowelClassifier;
+
+        private WaveStream _waveStream;
+        private readonly WaveOutEvent _player = new WaveOutEvent();
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
@@ -135,6 +138,8 @@ namespace UtagoeGui
 
         private async void openButton_Click(object sender, RoutedEventArgs e)
         {
+            this.StopPlayback();
+
             if (this._openFileDialog.ShowDialog(this) != true) return;
 
             this.loadingGrid.Visibility = Visibility.Visible;
@@ -199,20 +204,23 @@ namespace UtagoeGui
 
         private async Task<IReadOnlyList<NoteBlockInfo>> OpenFileAsync(string fileName)
         {
-            const int analysisUnit = 4096;
+            if (this._waveStream != null)
+                this._waveStream.Dispose();
+
             const int vowelWindowSize = 2048;
             const int pitchWindowSize = 1024;
 
             var blocks = new List<NoteBlockInfo>();
+            var reader = new AudioFileReader(fileName);
 
-            using (var reader = new MediaFoundationReader(fileName))
+            try
             {
                 var provider = reader.ToSampleProvider().ToMono();
                 var sampleRate = provider.WaveFormat.SampleRate;
 
                 var mfccComputer = new MfccAccord(sampleRate, vowelWindowSize);
                 var classifier = await this._vowelClassifier.ConfigureAwait(false);
-                var samples = new float[analysisUnit];
+                var samples = new float[AnalysisUnit];
 
                 for (var unitCount = 0; ; unitCount++)
                 {
@@ -223,7 +231,7 @@ namespace UtagoeGui
                         if (count == 0)
                         {
                             this._unitCount = unitCount;
-                            return blocks;
+                            goto EndAnalysis;
                         }
                         readSamples += count;
                     }
@@ -240,7 +248,7 @@ namespace UtagoeGui
 
                     // 512 ずつずらしながら母音認識
                     var vowelCandidates = new int[(int)VowelType.Other + 1];
-                    for (var offset = 0; offset <= analysisUnit - vowelWindowSize; offset += 512)
+                    for (var offset = 0; offset <= AnalysisUnit - vowelWindowSize; offset += 512)
                     {
                         var mfcc = mfccComputer.ComputeMfcc12D(new ReadOnlySpan<float>(samples, offset, vowelWindowSize));
                         vowelCandidates[(int)classifier.Decide(mfcc)]++;
@@ -267,8 +275,8 @@ namespace UtagoeGui
 
                     // 512 ずつずらしながらピッチ検出
                     const int pitchOffsetDelta = 512;
-                    var basicFreqs = new List<double>(analysisUnit / pitchOffsetDelta);
-                    for (var offset = 0; offset <= analysisUnit - pitchWindowSize; offset += pitchOffsetDelta)
+                    var basicFreqs = new List<double>(AnalysisUnit / pitchOffsetDelta);
+                    for (var offset = 0; offset <= AnalysisUnit - pitchWindowSize; offset += pitchOffsetDelta)
                     {
                         var f = PitchAccord.EstimateBasicFrequency(
                             sampleRate,
@@ -291,6 +299,15 @@ namespace UtagoeGui
                         blocks.Add(block);
                 }
             }
+            catch
+            {
+                reader.Dispose();
+                throw;
+            }
+
+            EndAnalysis:
+            this._waveStream = reader;
+            return blocks;
         }
 
         private Point? _mousePosition;
@@ -382,6 +399,12 @@ namespace UtagoeGui
         {
             this._touchPosition = null;
             e.Handled = true;
+        }
+
+        private void StopPlayback()
+        {
+            if (this._player.PlaybackState == PlaybackState.Playing)
+                this._player.Stop();
         }
     }
 }

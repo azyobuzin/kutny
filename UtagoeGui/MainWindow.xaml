@@ -15,6 +15,7 @@
 
         <StackPanel Grid.Row="0" Orientation="Horizontal">
             <Button Name="openButton" Content="開く" Width="50" Click="openButton_Click" />
+            <Button Name="playButton" Content="⏯" Width="50" />
             <Button Name="zoomInButton" Content="拡大" Width="50" Click="zoomInButton_Click" />
             <Button Name="zoomOutButton" Content="縮小" Width="50" Click="zoomOutButton_Click" />
         </StackPanel>
@@ -55,6 +56,7 @@
                   TouchLeave="mainContentContainer_TouchUp">
                 <Grid Name="mainContentGrid" Height="2816">
                     <Grid Name="notesGrid" Width="0" HorizontalAlignment="Left" />
+                    <Rectangle Name="playbackPositionBar" Width="1" Fill="Red" HorizontalAlignment="Left" />
                     <Grid Name="noteNamesGrid" Width="50" HorizontalAlignment="Left" Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}" />
                 </Grid>
             </Grid>

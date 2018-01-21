@@ -40,7 +40,7 @@ namespace PitchDetector
             var data = new float[windowSize];
 
             // 2.5sのところから1024サンプル取得してくる
-            using (var reader = new WaveFileReader(Path.Combine(GetTrainingDataDirectory(), "あいうえお 2017-12-18 00-17-09.wav")))
+            using (var reader = new WaveFileReader(Path.Combine(Utils.GetTrainingDataDirectory(), "あいうえお 2017-12-18 00-17-09.wav")))
             {
                 var provider = reader.ToSampleProvider()
                     .Skip(TimeSpan.FromSeconds(2.5))
@@ -72,7 +72,7 @@ namespace PitchDetector
 
             var series = new ScatterSeries();
 
-            using (var reader = new WaveFileReader(Path.Combine(GetTrainingDataDirectory(), "校歌 2018-01-17 15-10-46.wav")))
+            using (var reader = new WaveFileReader(Path.Combine(Utils.GetTrainingDataDirectory(), "校歌 2018-01-17 15-10-46.wav")))
             {
                 var provider = reader.ToSampleProvider().ToMono();
                 var rate = provider.WaveFormat.SampleRate;
@@ -118,7 +118,7 @@ namespace PitchDetector
                             Array.Sort(h);
                             var med = h[h.Length / 2];
 
-                            series.Points.Add(new ScatterPoint((double)i / rate, HzToMidiNote(med)));
+                            series.Points.Add(new ScatterPoint((double)i / rate, Utils.HzToMidiNote(med)));
                         }
                     }
                 }
@@ -132,11 +132,6 @@ namespace PitchDetector
             });
         }
 
-        private static int HzToMidiNote(double f)
-        {
-            return (int)Math.Round(69.0 + 12.0 * Math.Log(f / 440.0, 2.0));
-        }
-
         private static void Mfcc()
         {
             const int windowSize = 2048;
@@ -144,7 +139,7 @@ namespace PitchDetector
             var data = new float[windowSize];
 
             // 2.5s のところから 2048 サンプル取得してくる
-            using (var reader = new WaveFileReader(Path.Combine(GetTrainingDataDirectory(), "あいうえお 2017-12-18 00-17-09.wav")))
+            using (var reader = new WaveFileReader(Path.Combine(Utils.GetTrainingDataDirectory(), "あいうえお 2017-12-18 00-17-09.wav")))
             {
                 var provider = reader.ToSampleProvider()
                     .Skip(TimeSpan.FromSeconds(2.5))
@@ -168,7 +163,7 @@ namespace PitchDetector
         private static VowelClassifier PrepareVowelClassifier()
         {
             var classifier = new VowelClassifier();
-            var dir = GetTrainingDataDirectory();
+            var dir = Utils.GetTrainingDataDirectory();
 
             Task.WaitAll(
                 classifier.AddTrainingDataAsync(Path.Combine(dir, "あいうえお 2017-12-18 00-17-09.csv")),
@@ -189,7 +184,7 @@ namespace PitchDetector
             int rate;
             var data = new float[windowSize];
 
-            using (var reader = new WaveFileReader(Path.Combine(GetTrainingDataDirectory(), "校歌 2018-01-17 15-10-46.wav")))
+            using (var reader = new WaveFileReader(Path.Combine(Utils.GetTrainingDataDirectory(), "校歌 2018-01-17 15-10-46.wav")))
             {
                 var provider = reader.ToSampleProvider()
                     .Skip(TimeSpan.FromSeconds(11))
@@ -214,7 +209,7 @@ namespace PitchDetector
             float[] samples;
             int rate;
 
-            using (var wavReader = new WaveFileReader(Path.Combine(GetTrainingDataDirectory(), "校歌 2018-01-17 15-10-46.wav")))
+            using (var wavReader = new WaveFileReader(Path.Combine(Utils.GetTrainingDataDirectory(), "校歌 2018-01-17 15-10-46.wav")))
             {
                 var provider = wavReader.ToSampleProvider().ToMono();
                 rate = provider.WaveFormat.SampleRate;
@@ -298,8 +293,7 @@ namespace PitchDetector
 
                 basicFreqs.Sort();
                 var basicFreq = basicFreqs[basicFreqs.Count / 2]; // 中央値
-                var noteNum = HzToMidiNote(basicFreq);
-
+                var noteNum = Utils.HzToMidiNote(basicFreq);
 
                 var plotItem = new IntervalBarItem()
                 {
@@ -353,25 +347,6 @@ namespace PitchDetector
 
                 window.Show();
             });
-        }
-
-        private static string GetTrainingDataDirectory()
-        {
-            const string directoryName = "TrainingData";
-
-            var inCurrentDir = Path.Combine(Directory.GetCurrentDirectory(), directoryName);
-            if (Directory.Exists(inCurrentDir)) return inCurrentDir;
-
-            // アセンブリの場所からさかのぼってみる
-            for (var path = Path.GetDirectoryName(typeof(Program).Assembly.Location);
-                path != null;
-                path = Path.GetDirectoryName(path))
-            {
-                var dir = Path.Combine(path, directoryName);
-                if (Directory.Exists(dir)) return dir;
-            }
-
-            throw new DirectoryNotFoundException(directoryName + " ディレクトリが見つかりませんでした。");
         }
     }
 }

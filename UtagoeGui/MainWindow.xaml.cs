@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -54,7 +55,8 @@ namespace UtagoeGui
         private double _unitWidth = 10;
         private int _unitCount;
 
-        private Task<VowelClassifier> _vowelClassifier;
+        private Task<VowelClassifier> _svmVowelClassifier;
+        private Task<VowelClassifier> _nnVowelClassifier;
 
         private WaveStream _waveStream;
         private readonly WaveOutEvent _player = new WaveOutEvent();
@@ -89,21 +91,32 @@ namespace UtagoeGui
                 this.noteNamesGrid.Children.Add(border);
             }
 
-            if (this._vowelClassifier == null)
+            // 学習はバックグラウンドでやっておく
+            var dir = Utils.GetTrainingDataDirectory();
+            var trainingData = new[] {
+                Path.Combine(dir, "あいうえお 2017-12-18 00-17-09.csv"),
+                Path.Combine(dir, "あいうえお 2018-01-20 16-48-52.csv")
+            };
+
+            if (this._svmVowelClassifier == null)
             {
-                // 学習はバックグラウンドでやっておく
-                this._vowelClassifier = Task.Run(async () =>
+                this._svmVowelClassifier = Task.Run(async () =>
                 {
-                    var classifier = new VowelClassifier();
-                    var dir = Utils.GetTrainingDataDirectory();
-
-                    await Task.WhenAll(
-                        classifier.AddTrainingDataAsync(Path.Combine(dir, "あいうえお 2017-12-18 00-17-09.csv")),
-                        classifier.AddTrainingDataAsync(Path.Combine(dir, "あいうえお 2018-01-20 16-48-52.csv"))
-                    ).ConfigureAwait(false);
-
+                    var classifier = new SvmVowelClassifier();
+                    await Task.WhenAll(trainingData.Select(classifier.AddTrainingDataAsync)).ConfigureAwait(false);
                     classifier.Learn();
-                    return classifier;
+                    return (VowelClassifier)classifier;
+                });
+            }
+
+            if (this._nnVowelClassifier == null)
+            {
+                this._nnVowelClassifier = Task.Run(async () =>
+                {
+                    var classifier = new NeuralNetworkVowelClassifier();
+                    await Task.WhenAll(trainingData.Select(classifier.AddTrainingDataAsync)).ConfigureAwait(false);
+                    classifier.Learn();
+                    return (VowelClassifier)classifier;
                 });
             }
         }
@@ -175,7 +188,9 @@ namespace UtagoeGui
             if (this._openFileDialog.ShowDialog(this) != true) return;
 
             this.loadingGrid.Visibility = Visibility.Visible;
-            var blocks = await Task.Run(() => this.OpenFileAsync(this._openFileDialog.FileName));
+
+            var useSvmClassifier = this.svmCheck.IsChecked == true;
+            var blocks = await Task.Run(() => this.OpenFileAsync(this._openFileDialog.FileName, useSvmClassifier));
 
             // 今あるものを全部削除
             this.notesGrid.Children.Clear();
@@ -213,19 +228,10 @@ namespace UtagoeGui
             // ブロックを作る
             foreach (var x in blocks)
             {
-                string label;
-                switch (x.VowelType)
+                var block = new NoteBlock()
                 {
-                    case VowelType.A: label = "あ"; break;
-                    case VowelType.I: label = "い"; break;
-                    case VowelType.U: label = "う"; break;
-                    case VowelType.E: label = "え"; break;
-                    case VowelType.O: label = "お"; break;
-                    case VowelType.N: label = "ん"; break;
-                    default: throw new InvalidOperationException();
-                }
-
-                var block = new NoteBlock() { Text = label };
+                    Text = VowelClassifier.VowelTypeToString(x.VowelType)
+                };
                 Grid.SetRow(block, 127 - x.NoteNumber);
                 Grid.SetColumn(block, x.Start);
                 Grid.SetColumnSpan(block, x.Span);
@@ -235,7 +241,7 @@ namespace UtagoeGui
             this.loadingGrid.Visibility = Visibility.Collapsed;
         }
 
-        private async Task<IReadOnlyList<NoteBlockInfo>> OpenFileAsync(string fileName)
+        private async Task<IReadOnlyList<NoteBlockInfo>> OpenFileAsync(string fileName, bool useSvmClassifier)
         {
             if (this._waveStream != null)
             {
@@ -255,7 +261,7 @@ namespace UtagoeGui
                 var sampleRate = provider.WaveFormat.SampleRate;
 
                 var mfccComputer = new MfccAccord(sampleRate, vowelWindowSize);
-                var classifier = await this._vowelClassifier.ConfigureAwait(false);
+                var classifier = await (useSvmClassifier ? this._svmVowelClassifier : this._nnVowelClassifier).ConfigureAwait(false);
                 var samples = new float[AnalysisUnit];
 
                 for (var unitCount = 0; ; unitCount++)

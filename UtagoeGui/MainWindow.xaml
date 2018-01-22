@@ -18,6 +18,16 @@
             <Button Name="playButton" Content="⏯" Width="50" Click="playButton_Click" />
             <Button Name="zoomInButton" Content="拡大" Width="50" Click="zoomInButton_Click" />
             <Button Name="zoomOutButton" Content="縮小" Width="50" Click="zoomOutButton_Click" />
+            <Grid Margin="6,0,6,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition />
+                </Grid.RowDefinitions>
+                <RadioButton Name="svmCheck" Grid.Row="1" Content="SVM" IsChecked="True" />
+                <RadioButton Name="nnCheck" Grid.Row="2" Content="NN" />
+            </Grid>
         </StackPanel>
 
         <Grid Grid.Row="1" ClipToBounds="True">

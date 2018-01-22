@@ -4,18 +4,15 @@ using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 using Accord.IO;
-using Accord.MachineLearning.VectorMachines.Learning;
-using Accord.Statistics.Kernels;
 using NAudio.Wave;
 
 namespace PitchDetector
 {
-    public class VowelClassifier
+    public abstract class VowelClassifier
     {
-        private readonly List<(double[], VowelType)> _trainingData = new List<(double[], VowelType)>();
-        private readonly MulticlassSupportVectorLearning<Linear> _teacher = new MulticlassSupportVectorLearning<Linear>();
+        protected List<(double[], VowelType)> TrainingData { get; } = new List<(double[], VowelType)>();
 
-        public Task AddTrainingDataAsync(string csvFileName)
+        public virtual Task AddTrainingDataAsync(string csvFileName)
         {
             float[] samples;
             int rate;
@@ -48,15 +45,15 @@ namespace PitchDetector
                     var vowelType = ParseVowelType(csvReader["Class"]);
 
                     // どうしよう
-                    if (vowelType == VowelType.Other) continue;
+                    //if (vowelType == VowelType.Other) continue;
 
                     // 並列でばんばか投げていくぞ
                     tasks.Add(Task.Run(() =>
                     {
                         var v = mfcc.ComputeMfcc12D(new ReadOnlySpan<float>(samples, (int)(time * rate), windowSize));
 
-                        lock (this._trainingData)
-                            this._trainingData.Add((v, vowelType));
+                        lock (this.TrainingData)
+                            this.TrainingData.Add((v, vowelType));
                     }));
                 }
             }
@@ -64,7 +61,11 @@ namespace PitchDetector
             return Task.WhenAll(tasks);
         }
 
-        private static VowelType ParseVowelType(string klass)
+        public abstract void Learn();
+
+        public abstract VowelType Decide(double[] input);
+
+        public static VowelType ParseVowelType(string klass)
         {
             switch (klass)
             {
@@ -79,24 +80,19 @@ namespace PitchDetector
             }
         }
 
-        public void Learn()
+        public static string VowelTypeToString(VowelType x)
         {
-            var inputs = new double[this._trainingData.Count][];
-            var classes = new int[this._trainingData.Count];
-
-            for (var i = 0; i < this._trainingData.Count; i++)
+            switch (x)
             {
-                var (x, y) = this._trainingData[i];
-                inputs[i] = x;
-                classes[i] = (int)y;
+                case VowelType.A: return "あ";
+                case VowelType.I: return "い";
+                case VowelType.U: return "う";
+                case VowelType.E: return "え";
+                case VowelType.O: return "お";
+                case VowelType.N: return "ん";
+                case VowelType.Other: return "他";
+                default: throw new ArgumentException();
             }
-
-            this._teacher.Learn(inputs, classes);
-        }
-
-        public VowelType Decide(double[] input)
-        {
-            return (VowelType)this._teacher.Model.Decide(input);
         }
     }
 

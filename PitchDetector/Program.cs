@@ -162,7 +162,7 @@ namespace PitchDetector
 
         private static VowelClassifier PrepareVowelClassifier()
         {
-            var classifier = new VowelClassifier();
+            var classifier = new NeuralNetworkVowelClassifier();
             var dir = Utils.GetTrainingDataDirectory();
 
             Task.WaitAll(

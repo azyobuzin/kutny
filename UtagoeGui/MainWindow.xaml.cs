@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using NAudio.Wave;
 using PitchDetector;
@@ -19,6 +20,26 @@ namespace UtagoeGui
         public MainWindow()
         {
             InitializeComponent();
+
+            this._playerTimer = new DispatcherTimer(DispatcherPriority.Render, this.Dispatcher)
+            {
+                Interval = TimeSpan.FromSeconds(1.0 / 60.0) // 60回/s
+            };
+            this._playerTimer.Tick += (sender, e) => this.ReloadPlaybackPosition(true);
+
+            this._player.PlaybackStopped += (sender, e) =>
+            {
+                if (this._stoppingPlaybackManually)
+                {
+                    this._stoppingPlaybackManually = false;
+                }
+                else
+                {
+                    this._playerTimer.Stop();
+                    this._currentPlaybackPosition = 0;
+                    this.UpdatePlaybackPositionBar();
+                }
+            };
         }
 
         private static readonly string[] s_noteNames = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
@@ -37,6 +58,10 @@ namespace UtagoeGui
 
         private WaveStream _waveStream;
         private readonly WaveOutEvent _player = new WaveOutEvent();
+        private readonly DispatcherTimer _playerTimer;
+        private double _currentPlaybackPosition; // AnalysisUnit 何個分かで見る
+        private long _playbackStartPosition;
+        private bool _stoppingPlaybackManually;
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
@@ -114,7 +139,13 @@ namespace UtagoeGui
 
         private void horizontalScrollBar_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            this.notesGrid.Margin = new Thickness(this.noteNamesGrid.ActualWidth - e.NewValue, 0, 0, 0);
+            this.horizontalScrollBar_ValueChanged();
+        }
+
+        private void horizontalScrollBar_ValueChanged()
+        {
+            this.notesGrid.Margin = new Thickness(this.noteNamesGrid.ActualWidth - this.horizontalScrollBar.Value, 0, 0, 0);
+            this.UpdatePlaybackPositionBar();
         }
 
         private void zoomInButton_Click(object sender, RoutedEventArgs e)
@@ -138,7 +169,8 @@ namespace UtagoeGui
 
         private async void openButton_Click(object sender, RoutedEventArgs e)
         {
-            this.StopPlayback();
+            if (this._player.PlaybackState == PlaybackState.Playing)
+                this.PausePlayback();
 
             if (this._openFileDialog.ShowDialog(this) != true) return;
 
@@ -151,6 +183,7 @@ namespace UtagoeGui
             // リサイズ
             this.UpdateZoom(this._unitWidth);
             this.horizontalScrollBar.Value = 0;
+            this.horizontalScrollBar_ValueChanged();
 
             // Grid のカラム数を合わせる
             var oldColumnCount = this.notesGrid.ColumnDefinitions.Count;
@@ -205,7 +238,10 @@ namespace UtagoeGui
         private async Task<IReadOnlyList<NoteBlockInfo>> OpenFileAsync(string fileName)
         {
             if (this._waveStream != null)
+            {
                 this._waveStream.Dispose();
+                this._waveStream = null;
+            }
 
             const int vowelWindowSize = 2048;
             const int pitchWindowSize = 1024;
@@ -307,6 +343,7 @@ namespace UtagoeGui
 
             EndAnalysis:
             this._waveStream = reader;
+            this._currentPlaybackPosition = 0;
             return blocks;
         }
 
@@ -315,6 +352,9 @@ namespace UtagoeGui
         private void mainContentContainer_MouseMove(object sender, MouseEventArgs e)
         {
             e.Handled = true;
+
+            if (e.LeftButton == MouseButtonState.Pressed)
+                this.MovePlaybackPosition(e);
 
             if (!this._mousePosition.HasValue) return;
 
@@ -401,10 +441,86 @@ namespace UtagoeGui
             e.Handled = true;
         }
 
-        private void StopPlayback()
+        private void ReloadPlaybackPosition(bool scroll)
+        {
+            this._currentPlaybackPosition = (double)(this._player.GetPosition() + this._playbackStartPosition)
+                / this._waveStream.WaveFormat.BlockAlign
+                / AnalysisUnit;
+
+            this.UpdatePlaybackPositionBar();
+
+            if (scroll)
+            {
+                if (this.playbackPositionBar.Margin.Left >= this.mainContentGrid.ActualWidth - 1)
+                {
+                    this.horizontalScrollBar.Value = this._currentPlaybackPosition * this._unitWidth;
+                }
+            }
+        }
+
+        private void UpdatePlaybackPositionBar()
+        {
+            this.playbackPositionBar.Margin = new Thickness(
+                this.noteNamesGrid.ActualWidth - this.horizontalScrollBar.Value + this._unitWidth * (this._currentPlaybackPosition - 0.5),
+                0, 0, 0
+            );
+        }
+
+        private void playButton_Click(object sender, RoutedEventArgs e)
         {
             if (this._player.PlaybackState == PlaybackState.Playing)
+            {
+                this.PausePlayback();
+            }
+            else if (this._waveStream != null)
+            {
+                this.PlayFromPosition(this._currentPlaybackPosition);
+            }
+        }
+
+        private void PausePlayback()
+        {
+            this._player.Pause();
+            this._playerTimer.Stop();
+            this.ReloadPlaybackPosition(true);
+        }
+
+        private void PlayFromPosition(double pos)
+        {
+            if (this._player.PlaybackState != PlaybackState.Stopped)
+            {
+                this._stoppingPlaybackManually = true;
                 this._player.Stop();
+            }
+
+            this._playbackStartPosition = (long)(this._waveStream.BlockAlign * AnalysisUnit * pos);
+            this._waveStream.Position = this._playbackStartPosition;
+            this._player.Init(this._waveStream);
+            this._player.Play();
+            this._playerTimer.Start();
+        }
+
+        private void mainContentContainer_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            this.MovePlaybackPosition(e);
+        }
+
+        private void MovePlaybackPosition(MouseEventArgs e)
+        {
+            if (this._waveStream == null) return;
+
+            var pos = e.GetPosition(this.notesGrid).X / this._unitWidth + 0.5;
+
+            if (this._player.PlaybackState == PlaybackState.Playing)
+            {
+                this.PlayFromPosition(pos);
+            }
+            else
+            {
+                this._currentPlaybackPosition = pos;
+                this.UpdatePlaybackPositionBar();
+            }
         }
     }
 }

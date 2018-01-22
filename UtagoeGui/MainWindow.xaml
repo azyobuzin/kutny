@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:UtagoeGui"
         mc:Ignorable="d"
-        Title="MainWindow" Height="350" Width="525"
+        Title="UtagoeGui" Height="700" Width="1000"
         Loaded="Window_Loaded" SizeChanged="Window_SizeChanged">
     <Grid Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}">
         <Grid.RowDefinitions>
@@ -15,25 +15,10 @@
 
         <StackPanel Grid.Row="0" Orientation="Horizontal">
             <Button Name="openButton" Content="開く" Width="50" Click="openButton_Click" />
-            <Button Name="playButton" Content="⏯" Width="50" />
+            <Button Name="playButton" Content="⏯" Width="50" Click="playButton_Click" />
             <Button Name="zoomInButton" Content="拡大" Width="50" Click="zoomInButton_Click" />
             <Button Name="zoomOutButton" Content="縮小" Width="50" Click="zoomOutButton_Click" />
         </StackPanel>
-
-        <!--<ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Visible">
-            <Grid Height="3175">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="50" />
-                    <ColumnDefinition />
-                </Grid.ColumnDefinitions>
-
-                <Grid Name="noteNamesGrid" Grid.Column="0"></Grid>
-
-                <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Visible" VerticalScrollBarVisibility="Disabled">
-                    <Grid Name="notesGrid"></Grid>
-                </ScrollViewer>
-            </Grid>
-        </ScrollViewer>-->
 
         <Grid Grid.Row="1" ClipToBounds="True">
             <Grid.ColumnDefinitions>
@@ -53,7 +38,8 @@
                   TouchMove="mainContentContainer_TouchMove"
                   TouchDown="mainContentContainer_TouchDown"
                   TouchUp="mainContentContainer_TouchUp"
-                  TouchLeave="mainContentContainer_TouchUp">
+                  TouchLeave="mainContentContainer_TouchUp"
+                  MouseLeftButtonDown="mainContentContainer_MouseLeftButtonDown">
                 <Grid Name="mainContentGrid" Height="2816">
                     <Grid Name="notesGrid" Width="0" HorizontalAlignment="Left" />
                     <Rectangle Name="playbackPositionBar" Width="1" Fill="Red" HorizontalAlignment="Left" />

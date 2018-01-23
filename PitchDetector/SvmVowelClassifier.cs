@@ -1,4 +1,5 @@
-﻿using Accord.MachineLearning.VectorMachines.Learning;
+﻿using System;
+using Accord.MachineLearning.VectorMachines.Learning;
 using Accord.Statistics.Kernels;
 
 namespace PitchDetector
@@ -22,8 +23,9 @@ namespace PitchDetector
             this._teacher.Learn(inputs, classes);
         }
 
-        public override VowelType Decide(double[] input)
+        public override VowelType Decide(ReadOnlySpan<float> samples, int sampleRate)
         {
+            var input = new MfccAccord(sampleRate, samples.Length, 0, 8000, 24).ComputeMfcc12D(samples);
             return (VowelType)this._teacher.Model.Decide(input);
         }
     }

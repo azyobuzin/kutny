@@ -4,15 +4,19 @@ using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 using Accord.IO;
+using Accord.MachineLearning.VectorMachines.Learning;
+using Accord.Math;
+using Accord.Statistics;
+using Accord.Statistics.Kernels;
 using NAudio.Wave;
 
 namespace PitchDetector
 {
-    public abstract class VowelClassifier
+    public class MelSpectrumVowelClassifier : VowelClassifier
     {
-        protected List<(double[], VowelType)> TrainingData { get; } = new List<(double[], VowelType)>();
+        private readonly MulticlassSupportVectorLearning<Linear> _teacher = new MulticlassSupportVectorLearning<Linear>();
 
-        public virtual Task AddTrainingDataAsync(string csvFileName)
+        public override Task AddTrainingDataAsync(string csvFileName)
         {
             float[] samples;
             int rate;
@@ -37,7 +41,7 @@ namespace PitchDetector
             using (var csvReader = new CsvReader(csvFileName, true))
             {
                 const int windowSize = 2048;
-                var mfcc = new MfccAccord(rate, windowSize, 0, 8000, 24);
+                var mfcc = new MfccAccord(rate, windowSize, 0, 6000, 8);
 
                 while (csvReader.ReadNextRecord())
                 {
@@ -50,7 +54,8 @@ namespace PitchDetector
                     // 並列でばんばか投げていくぞ
                     tasks.Add(Task.Run(() =>
                     {
-                        var v = mfcc.ComputeMfcc12D(new ReadOnlySpan<float>(samples, (int)(time * rate), windowSize));
+                        var v = mfcc.MelSpectrum(new ReadOnlySpan<float>(samples, (int)(time * rate), windowSize));
+                        v.Subtract(v.Mean(), v);
 
                         lock (this.TrainingData)
                             this.TrainingData.Add((v, vowelType));
@@ -61,49 +66,25 @@ namespace PitchDetector
             return Task.WhenAll(tasks);
         }
 
-        public abstract void Learn();
-
-        public abstract VowelType Decide(ReadOnlySpan<float> samples, int sampleRate);
-
-        public static VowelType ParseVowelType(string klass)
+        public override void Learn()
         {
-            switch (klass)
+            var inputs = new double[this.TrainingData.Count][];
+            var classes = new int[this.TrainingData.Count];
+
+            for (var i = 0; i < this.TrainingData.Count; i++)
             {
-                case "あ": return VowelType.A;
-                case "い": return VowelType.I;
-                case "う": return VowelType.U;
-                case "え": return VowelType.E;
-                case "お": return VowelType.O;
-                case "ん": return VowelType.N;
-                case "他": return VowelType.Other;
-                default: throw new ArgumentException();
+                var (x, y) = this.TrainingData[i];
+                inputs[i] = x;
+                classes[i] = (int)y;
             }
+
+            this._teacher.Learn(inputs, classes);
         }
 
-        public static string VowelTypeToString(VowelType x)
+        public override VowelType Decide(ReadOnlySpan<float> samples, int sampleRate)
         {
-            switch (x)
-            {
-                case VowelType.A: return "あ";
-                case VowelType.I: return "い";
-                case VowelType.U: return "う";
-                case VowelType.E: return "え";
-                case VowelType.O: return "お";
-                case VowelType.N: return "ん";
-                case VowelType.Other: return "他";
-                default: throw new ArgumentException();
-            }
+            var input = new MfccAccord(sampleRate, samples.Length, 0, 6000, 8).MelSpectrum(samples);
+            return (VowelType)this._teacher.Model.Decide(input);
         }
-    }
-
-    public enum VowelType
-    {
-        A,
-        I,
-        U,
-        E,
-        O,
-        N,
-        Other
     }
 }

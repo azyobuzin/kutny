@@ -57,6 +57,7 @@ namespace UtagoeGui
 
         private Task<VowelClassifier> _svmVowelClassifier;
         private Task<VowelClassifier> _nnVowelClassifier;
+        private Task<VowelClassifier> _melSpectrumVowelClassifier;
 
         private WaveStream _waveStream;
         private readonly WaveOutEvent _player = new WaveOutEvent();
@@ -114,6 +115,17 @@ namespace UtagoeGui
                 this._nnVowelClassifier = Task.Run(async () =>
                 {
                     var classifier = new NeuralNetworkVowelClassifier();
+                    await Task.WhenAll(trainingData.Select(classifier.AddTrainingDataAsync)).ConfigureAwait(false);
+                    classifier.Learn();
+                    return (VowelClassifier)classifier;
+                });
+            }
+
+            if (this._melSpectrumVowelClassifier == null)
+            {
+                this._melSpectrumVowelClassifier = Task.Run(async () =>
+                {
+                    var classifier = new MelSpectrumVowelClassifier();
                     await Task.WhenAll(trainingData.Select(classifier.AddTrainingDataAsync)).ConfigureAwait(false);
                     classifier.Learn();
                     return (VowelClassifier)classifier;
@@ -189,8 +201,8 @@ namespace UtagoeGui
 
             this.loadingGrid.Visibility = Visibility.Visible;
 
-            var useSvmClassifier = this.svmCheck.IsChecked == true;
-            var blocks = await Task.Run(() => this.OpenFileAsync(this._openFileDialog.FileName, useSvmClassifier));
+            var classifierIndex = classifierComboBox.SelectedIndex;
+            var blocks = await Task.Run(() => this.OpenFileAsync(this._openFileDialog.FileName, classifierIndex));
 
             // 今あるものを全部削除
             this.notesGrid.Children.Clear();
@@ -241,12 +253,21 @@ namespace UtagoeGui
             this.loadingGrid.Visibility = Visibility.Collapsed;
         }
 
-        private async Task<IReadOnlyList<NoteBlockInfo>> OpenFileAsync(string fileName, bool useSvmClassifier)
+        private async Task<IReadOnlyList<NoteBlockInfo>> OpenFileAsync(string fileName, int classifierIndex)
         {
             if (this._waveStream != null)
             {
                 this._waveStream.Dispose();
                 this._waveStream = null;
+            }
+
+            Task<VowelClassifier> classifierTask;
+            switch (classifierIndex)
+            {
+                case 0: classifierTask = this._svmVowelClassifier; break;
+                case 1: classifierTask = this._nnVowelClassifier; break;
+                case 2: classifierTask = this._melSpectrumVowelClassifier; break;
+                default: throw new ArgumentOutOfRangeException(nameof(classifierIndex));
             }
 
             const int vowelWindowSize = 2048;
@@ -260,8 +281,7 @@ namespace UtagoeGui
                 var provider = reader.ToSampleProvider().ToMono();
                 var sampleRate = provider.WaveFormat.SampleRate;
 
-                var mfccComputer = new MfccAccord(sampleRate, vowelWindowSize);
-                var classifier = await (useSvmClassifier ? this._svmVowelClassifier : this._nnVowelClassifier).ConfigureAwait(false);
+                var classifier = await classifierTask.ConfigureAwait(false);
                 var samples = new float[AnalysisUnit];
 
                 for (var unitCount = 0; ; unitCount++)
@@ -292,8 +312,7 @@ namespace UtagoeGui
                     var vowelCandidates = new int[(int)VowelType.Other + 1];
                     for (var offset = 0; offset <= AnalysisUnit - vowelWindowSize; offset += 512)
                     {
-                        var mfcc = mfccComputer.ComputeMfcc12D(new ReadOnlySpan<float>(samples, offset, vowelWindowSize));
-                        vowelCandidates[(int)classifier.Decide(mfcc)]++;
+                        vowelCandidates[(int)classifier.Decide(new ReadOnlySpan<float>(samples, offset, vowelWindowSize), sampleRate)]++;
                     }
 
                     var vowelCandidate = default(VowelType?);

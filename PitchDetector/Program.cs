@@ -6,6 +6,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Threading;
+using Accord.Math;
+using Accord.Statistics;
 using NAudio.Wave;
 using OxyPlot;
 using OxyPlot.Axes;
@@ -30,7 +32,7 @@ namespace PitchDetector
 
         private static void Run()
         {
-            PitchAndLyric();
+            MelFilteredSpectrum();
         }
 
         private static void BasicTest()
@@ -155,7 +157,7 @@ namespace PitchDetector
                 }
             }
 
-            var mfcc = new MfccAccord(rate, windowSize);
+            var mfcc = new MfccAccord(rate, windowSize, 0, 8000, 24);
             foreach (var x in mfcc.ComputeMfcc12D(data))
                 Console.WriteLine(x);
         }
@@ -199,9 +201,8 @@ namespace PitchDetector
                     readSamples += delta;
                 }
             }
-
-            var mfcc = new MfccAccord(rate, windowSize).ComputeMfcc12D(data);
-            Console.WriteLine(classifier.Decide(mfcc));
+            
+            Console.WriteLine(classifier.Decide(data, rate));
         }
 
         private static void PitchAndLyric()
@@ -228,7 +229,6 @@ namespace PitchDetector
             const int pitchWindowSize = 1024;
 
             var classifier = PrepareVowelClassifier();
-            var mfccComputer = new MfccAccord(rate, vowelWindowSize);
             var series = new IntervalBarSeries();
             var secsPerAnalysisUnit = (double)analysisUnit / rate;
             var analysisUnitCount = samples.Length / analysisUnit;
@@ -252,8 +252,7 @@ namespace PitchDetector
                 var vowelCandidates = new int[(int)VowelType.Other + 1];
                 for (var offset = startIndex; offset <= endIndex - vowelWindowSize; offset += 512)
                 {
-                    var mfcc = mfccComputer.ComputeMfcc12D(new ReadOnlySpan<float>(samples, offset, vowelWindowSize));
-                    vowelCandidates[(int)classifier.Decide(mfcc)]++;
+                    vowelCandidates[(int)classifier.Decide(new ReadOnlySpan<float>(samples, offset, vowelWindowSize), rate)]++;
                 }
 
                 var vowelCandidate = default(VowelType?);
@@ -331,6 +330,104 @@ namespace PitchDetector
                 Axes = { categoryAxis },
                 Series = { series }
             });
+        }
+
+        private static void MelFilteredSpectrum()
+        {
+            const int windowSize = 2048;
+            const int sampleRate = 44100;
+
+            var mfccComputer = new MfccAccord(sampleRate, windowSize, 0, 8000, 8);
+            var hzAxis = mfccComputer.HzAxisOfMelSpectrum();
+
+            float[] ReadSamples(string fileName, double secs)
+            {
+                float[] xs;
+                using (var wavReader = new WaveFileReader(Path.Combine(Utils.GetTrainingDataDirectory(), fileName)))
+                {
+                    var provider = wavReader.ToSampleProvider().Skip(TimeSpan.FromSeconds(secs)).ToMono();
+
+                    if (provider.WaveFormat.SampleRate != sampleRate)
+                        throw new Exception();
+
+                    xs = new float[windowSize];
+                    for (var readSamples = 0; readSamples < xs.Length;)
+                    {
+                        var count = provider.Read(xs, readSamples, xs.Length - readSamples);
+                        if (count == 0) break;
+                        readSamples += count;
+                    }
+                }
+                return xs;
+            }
+
+            void ShowSpectrum(string title, params (string, double)[] inputs)
+            {
+                var model = new PlotModel() { Title = title };
+
+                var i = 0;
+                foreach (var (fileName, secs) in inputs)
+                {
+                    var samples = ReadSamples(fileName, secs);
+                    var spec = mfccComputer.MelSpectrum(samples);
+                    var mean = spec.Mean();
+                    spec.Subtract(mean, spec);
+                    var series = new LineSeries() { Title = (++i).ToString() };
+                    series.Points.AddRange(hzAxis.Zip(spec, (x, y) => new DataPoint(x, y)));
+                    model.Series.Add(series);
+                }
+
+                ShowPlot(model);
+            }
+
+            ShowSpectrum(
+                "あ",
+                ("あいうえお 2017-12-18 00-17-09.wav", 2.5),
+                ("あいうえお 2018-01-20 16-48-52.wav", 3.5),
+                ("あいうえお 2018-01-20 16-48-52.wav", 9),
+                ("あいうえお 2018-01-20 16-48-52.wav", 13),
+                ("校歌 2018-01-17 15-10-46.wav", 9)
+            );
+
+            ShowSpectrum(
+                "い",
+                ("あいうえお 2017-12-18 00-17-09.wav", 5.7),
+                ("あいうえお 2018-01-20 16-48-52.wav", 20),
+                ("あいうえお 2018-01-20 16-48-52.wav", 24),
+                ("あいうえお 2018-01-20 16-48-52.wav", 29)
+            );
+
+            ShowSpectrum(
+                "う",
+                ("あいうえお 2017-12-18 00-17-09.wav", 9.8),
+                ("あいうえお 2018-01-20 16-48-52.wav", 34),
+                ("あいうえお 2018-01-20 16-48-52.wav", 37),
+                ("あいうえお 2018-01-20 16-48-52.wav", 41)
+            );
+
+            ShowSpectrum(
+                "え",
+                ("あいうえお 2017-12-18 00-17-09.wav", 13),
+                ("あいうえお 2018-01-20 16-48-52.wav", 46.5),
+                ("あいうえお 2018-01-20 16-48-52.wav", 49.5),
+                ("あいうえお 2018-01-20 16-48-52.wav", 53)
+            );
+
+            ShowSpectrum(
+                "お",
+                ("あいうえお 2017-12-18 00-17-09.wav", 17),
+                ("あいうえお 2018-01-20 16-48-52.wav", 57),
+                ("あいうえお 2018-01-20 16-48-52.wav", 60),
+                ("あいうえお 2018-01-20 16-48-52.wav", 63)
+            );
+
+            ShowSpectrum(
+                "ん",
+                ("あいうえお 2018-01-20 16-48-52.wav", 67),
+                ("あいうえお 2018-01-20 16-48-52.wav", 70),
+                ("あいうえお 2018-01-20 16-48-52.wav", 73.5),
+                ("あいうえお 2018-01-20 16-48-52.wav", 78)
+            );
         }
 
         public static void ShowPlot(PlotModel plot)

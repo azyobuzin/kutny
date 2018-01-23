@@ -39,8 +39,9 @@ namespace PitchDetector
             } while (error > 1e-5);
         }
 
-        public override VowelType Decide(double[] input)
+        public override VowelType Decide(ReadOnlySpan<float> samples, int sampleRate)
         {
+            var input = new MfccAccord(sampleRate, samples.Length, 0, 8000, 24).ComputeMfcc12D(samples);
             this._network.Compute(input).Max(out var i);
             return (VowelType)i;
         }

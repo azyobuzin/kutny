@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using Accord.Audio.Windows;
 using Accord.Math;
 using Accord.Math.Transforms;
@@ -10,26 +9,40 @@ namespace PitchDetector
 {
     public class MfccAccord
     {
-        private const double LowerHz = 0;
-        private const double UpperHz = 8000;
-        private const int FilterCount = 24;
-
         public int SampleRate { get; }
         public int SampleCount { get; }
+        public double LowerHz { get; }
+        public double UpperHz { get; }
+        public int FilterCount { get; }
         private RaisedCosineWindow _windowFunc;
         private readonly double[,] _melFilterbank;
 
-        public MfccAccord(int sampleRate, int sampleCount)
+        public MfccAccord(int sampleRate, int sampleCount, double lowerHz, double upperHz, int filterCount)
         {
             this.SampleRate = sampleRate;
             this.SampleCount = sampleCount;
+            this.LowerHz = lowerHz;
+            this.UpperHz = upperHz;
+            this.FilterCount = filterCount;
 
             // 事前に計算しておけるもの
             this._windowFunc = RaisedCosineWindow.Hamming(sampleCount);
-            this._melFilterbank = CreateMelFilterbank(sampleRate, sampleCount, LowerHz, UpperHz, FilterCount);
+            this._melFilterbank = CreateMelFilterbank(sampleRate, sampleCount, lowerHz, upperHz, filterCount);
         }
 
         public double[] ComputeMfcc12D(ReadOnlySpan<float> samples)
+        {
+            var filtered = MelSpectrum(samples);
+            CosineTransform.DCT(filtered);
+
+            const int resultDimension = 12;
+            var result = new double[resultDimension];
+            Array.Copy(filtered, 1, result, 0, resultDimension);
+
+            return result;
+        }
+
+        public double[] MelSpectrum(ReadOnlySpan<float> samples)
         {
             if (samples.Length != this.SampleCount)
                 throw new ArgumentException("samples の長さが違います。");
@@ -39,16 +52,11 @@ namespace PitchDetector
 
             // プリエンファシス → 窓関数
             real[0] = samples[0] * this._windowFunc[0];
-            var cosDenom = (double)(samples.Length - 1);
             for (var i = 1; i < real.Length; i++)
             {
                 var emphasized = samples[i] - 0.97 * samples[i - 1];
                 real[i] = emphasized * this._windowFunc[i];
             }
-
-            //var windowedSeries = new LineSeries();
-            //windowedSeries.Points.AddRange(real.Select((x, i) => new DataPoint((double)i / this.SampleRate, x)));
-            //Program.ShowPlot(new PlotModel() { Title = "入力", Series = { windowedSeries } });
 
             FourierTransform2.FFT(real, imag, FourierTransform.Direction.Forward);
 
@@ -56,37 +64,19 @@ namespace PitchDetector
             for (var i = 0; i < real.Length; i++)
                 real[i] = real[i] * real[i] + imag[i] * imag[i];
 
-            //var specSeries = new LineSeries();
-            //specSeries.Points.AddRange(real.Select((x, i) => new DataPoint((double)this.SampleRate / samples.Length * i, x)));
-            //Program.ShowPlot(new PlotModel() { Title = "振幅スペクトル", Series = { specSeries } });
-
-            //var powerSpecSeries = new LineSeries();
-            //powerSpecSeries.Points.AddRange(real.Select((x, i) => new DataPoint((double)this.SampleRate / samples.Length * i, Math.Log10(x))));
-            //Program.ShowPlot(new PlotModel() { Title = "パワースペクトル", Series = { powerSpecSeries } });
-
             // メルフィルターバンクをかける
             var filtered = real.Dot(this._melFilterbank);
             for (var i = 0; i < filtered.Length; i++)
                 filtered[i] = Math.Log10(filtered[i]);
 
-            //var filteredSeries = new LineSeries() { MarkerType = MarkerType.Circle };
-            //filteredSeries.Points.AddRange(filtered.Select((x, i) => new DataPoint(MelToHz(HzToMel(LowerHz) + HzToMel(UpperHz - LowerHz) / (FilterCount + 1) * (i + 1)), x)));
-            //Program.ShowPlot(new PlotModel() { Title = "フィルター結果", Series = { filteredSeries } });
+            return filtered;
+        }
 
-            CosineTransform.DCT(filtered);
-
-            const int resultDimension = 12;
-            var result = new double[resultDimension];
-            Array.Copy(filtered, 1, result, 0, resultDimension);
-
-            // 逆変換結果を表示
-            //var inv = new double[resultDimension + 1];
-            //Array.Copy(result, 0, inv, 1, resultDimension);
-            //CosineTransform.IDCT(inv);
-            //var invSeries = new LineSeries() { MarkerType = MarkerType.Circle };
-            //invSeries.Points.AddRange(inv.Select((x, i) => new DataPoint(MelToHz(HzToMel(LowerHz) + HzToMel(UpperHz - LowerHz) / (resultDimension + 1) * (i + 1)), x)));
-            //Program.ShowPlot(new PlotModel() { Title = "逆変換", Series = { invSeries } });
-
+        public double[] HzAxisOfMelSpectrum()
+        {
+            var result = new double[this._melFilterbank.GetLength(1)];
+            for (var i = 0; i < result.Length; i++)
+                result[i] = MelToHz(HzToMel(this.LowerHz) + HzToMel(this.UpperHz - this.LowerHz) / (this.FilterCount + 1) * (i + 1));
             return result;
         }
 

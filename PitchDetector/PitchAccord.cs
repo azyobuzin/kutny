@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Accord.Math;
@@ -45,7 +46,6 @@ namespace PitchDetector
             }
 
             // ピーク検出
-            // TODO: parabolic interpolation
             var maxCorrelation = 0.0;
             var peaks = new List<PeakPoint>();
             for (var i = 1; i < samples.Length; i++)
@@ -78,8 +78,43 @@ namespace PitchDetector
             if (peaks.Count == 0) return null; // 推定失敗
 
             var threshold = maxCorrelation * 0.8;
-            var delay = peaks.Find(x => x.Correlation >= threshold).Delay;
-            return (double)sampleRate / delay;
+            var mainPeak = peaks.Find(x => x.Correlation >= threshold);
+
+            var delay = mainPeak.Delay == nsdf.Length - 1
+                ? mainPeak.Delay
+                : GetTopX(
+                    mainPeak.Delay - 1, nsdf[mainPeak.Delay - 1],
+                    mainPeak.Delay, mainPeak.Correlation,
+                    mainPeak.Delay + 1, nsdf[mainPeak.Delay + 1]
+                );
+
+            Debug.Assert(delay >= mainPeak.Delay - 1 && delay <= mainPeak.Delay + 1);
+            return sampleRate / delay;
+        }
+
+        /// <summary>
+        /// 2次関数として放物線補間して頂点のX座標を求める
+        /// </summary>
+        private static double GetTopX(double x1, double y1, double x2, double y2, double x3, double y3)
+        {
+            // y = ax^2 + bx + c
+
+            var m = new[,]
+            {
+                { x1 * x1, x1, 1.0 },
+                { x2 * x2, x2, 1.0 },
+                { x3 * x3, x3, 1.0 }
+            };
+
+            // 行列で連立方程式を解くやつ
+            var solution = m.Inverse(true).Dot(new[,] { { y1 }, { y2 }, { y3 } });
+
+            var a = solution[0, 0];
+            var b = solution[1, 0];
+            //var c = solution[2, 0];
+
+            // 頂点の公式
+            return -b / (2.0 * a);
         }
 
         [StructLayout(LayoutKind.Auto)]

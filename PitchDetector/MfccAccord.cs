@@ -37,7 +37,8 @@ namespace PitchDetector
 
             const int resultDimension = 12;
             var result = new double[resultDimension];
-            Array.Copy(filtered, 1, result, 0, resultDimension);
+            // Min は応急処置（頭が悪い）
+            Array.Copy(filtered, 1, result, 0, Math.Min(resultDimension, filtered.Length - 1));
 
             return result;
         }

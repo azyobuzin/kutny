@@ -1,7 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 
-namespace UtagoeGui
+namespace UtagoeGui.Views
 {
     /// <summary>
     /// NoteBlock.xaml の相互作用ロジック

@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Accord.Math;
 using Accord.Math.Transforms;
+using OxyPlot;
+using OxyPlot.Series;
 
 namespace PitchDetector
 {
@@ -44,6 +47,15 @@ namespace PitchDetector
 
                 nsdf[inv] = 2.0 * sdf[inv].Real / m;
             }
+
+            //var nsdfSeries = new LineSeries();
+            //nsdfSeries.Points.AddRange(nsdf.Select((x, i) => new DataPoint(1.0 / sampleRate * i, x)));
+            //var nsdfPlot = new PlotModel()
+            //{
+            //    Title = "NSDF",
+            //    Series = { nsdfSeries }
+            //};
+            //Program.ShowPlot(nsdfPlot);
 
             // ピーク検出
             var maxCorrelation = 0.0;

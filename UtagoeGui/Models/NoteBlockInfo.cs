@@ -1,8 +1,8 @@
 ﻿using PitchDetector;
 
-namespace UtagoeGui
+namespace UtagoeGui.Models
 {
-    internal class NoteBlockInfo
+    public class NoteBlockInfo
     {
         public NoteBlockInfo(int start, int noteNumber, VowelType vowelType)
         {
@@ -15,9 +15,9 @@ namespace UtagoeGui
         public int Start { get; }
         public int NoteNumber { get; }
         public VowelType VowelType { get; }
-        public int Span { get; set; }
+        public int Span { get; internal set; }
 
-        public bool MergeIfPossible(NoteBlockInfo other)
+        internal bool MergeIfPossible(NoteBlockInfo other)
         {
             if (other.Start == this.Start + this.Span
                 && other.NoteNumber == this.NoteNumber

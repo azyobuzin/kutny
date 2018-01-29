@@ -10,8 +10,10 @@ using System.Windows.Threading;
 using Microsoft.Win32;
 using NAudio.Wave;
 using PitchDetector;
+using UtagoeGui.Models;
+using UtagoeGui.ViewModels;
 
-namespace UtagoeGui
+namespace UtagoeGui.Views
 {
     /// <summary>
     /// MainWindow.xaml の相互作用ロジック
@@ -21,31 +23,47 @@ namespace UtagoeGui
         public MainWindow()
         {
             InitializeComponent();
-
-            this._playerTimer = new DispatcherTimer(DispatcherPriority.Render, this.Dispatcher)
+            
+            for (var i = 0; i <= Logics.MaximumNoteNumber - Logics.MinimumNoteNumber; i++)
             {
-                Interval = TimeSpan.FromSeconds(1.0 / 60.0) // 60回/s
-            };
-            this._playerTimer.Tick += (sender, e) => this.ReloadPlaybackPosition(true);
+                // noteNamesGrid の用意
+                this.noteNamesGrid.RowDefinitions.Add(new RowDefinition());
 
-            this._player.PlaybackStopped += (sender, e) =>
-            {
-                if (this._stoppingPlaybackManually)
+                var noteNum = Logics.MaximumNoteNumber - i;
+                var noteNameTextBlock = new TextBlock()
                 {
-                    this._stoppingPlaybackManually = false;
-                }
-                else
+                    Text = Logics.ToNoteName(noteNum),
+                    Padding = new Thickness(6, 0, 6, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+
+                var noteNameBorder = new Border()
                 {
-                    this._playerTimer.Stop();
-                    this._currentPlaybackPosition = 0;
-                    this.UpdatePlaybackPositionBar();
-                }
-            };
+                    BorderThickness = new Thickness(0, 0.5, 0, 0.5),
+                    BorderBrush = SystemColors.ActiveBorderBrush,
+                    Child = noteNameTextBlock
+                };
+
+                Grid.SetRow(noteNameBorder, i);
+                this.noteNamesGrid.Children.Add(noteNameBorder);
+
+                // notesGrid の用意
+                this.notesGrid.RowDefinitions.Add(new RowDefinition());
+
+                var noteLineBorder = new Border()
+                {
+                    BorderThickness = new Thickness(0, 0.5, 0, 0.5),
+                    BorderBrush = SystemColors.InactiveBorderBrush
+                };
+
+                Grid.SetRow(noteLineBorder, i);
+                this.notesGrid.Children.Add(noteLineBorder);
+            }
+            
         }
 
-        private static readonly string[] s_noteNames = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
-        private const int AnalysisUnit = 4096;
-
+        private MainWindowViewModel ViewModel => (MainWindowViewModel)this.DataContext;
+        
         private readonly OpenFileDialog _openFileDialog = new OpenFileDialog()
         {
             Filter = "すべてのファイル|*"
@@ -68,29 +86,7 @@ namespace UtagoeGui
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            for (var i = 0; i <= 127; i++)
-            {
-                this.noteNamesGrid.RowDefinitions.Add(new RowDefinition());
-                this.notesGrid.RowDefinitions.Add(new RowDefinition());
-
-                var noteNum = 127 - i;
-                var noteNameTextBlock = new TextBlock()
-                {
-                    Text = s_noteNames[noteNum % 12] + (noteNum / 12).ToString(),
-                    Padding = new Thickness(6, 0, 6, 0),
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-
-                var border = new Border()
-                {
-                    BorderThickness = new Thickness(0, 0.5, 0, 0.5),
-                    BorderBrush = SystemColors.ActiveBorderBrush,
-                    Child = noteNameTextBlock
-                };
-
-                Grid.SetRow(border, i);
-                this.noteNamesGrid.Children.Add(border);
-            }
+            this.ViewModel.Initialize();
 
             // 学習はバックグラウンドでやっておく
             var dir = Utils.GetTrainingDataDirectory();

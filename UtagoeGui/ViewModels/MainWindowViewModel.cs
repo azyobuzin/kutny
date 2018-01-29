@@ -26,9 +26,12 @@ namespace UtagoeGui.ViewModels
         [DependencyOnModelProperty(nameof(IAppStore.VowelClassifierType))]
         public int SelectedClassifierIndex
         {
-            get => (int)this.Store.VowelClassifierType;
-            set => this.Actions.ChangeVowelClassifier((VowelClassifierType)value);
+            get => VowelClassifierTypeToIndex(this.Store.VowelClassifierType);
+            set => this.Actions.ChangeVowelClassifier(IndexToVowerlClassifierType(value));
         }
+
+        private static int VowelClassifierTypeToIndex(VowelClassifierType x) => (int)x;
+        private static VowelClassifierType IndexToVowerlClassifierType(int x) => (VowelClassifierType)x;
 
         [DependencyOnModelProperty(nameof(IAppStore.IsWorking))]
         public Visibility LoadingViewVisibility => this.Store.IsWorking ? Visibility.Visible : Visibility.Collapsed;

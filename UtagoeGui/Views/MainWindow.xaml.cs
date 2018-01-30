@@ -1,15 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
+﻿using Microsoft.Win32;
+using System;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Threading;
-using Microsoft.Win32;
-using NAudio.Wave;
-using PitchDetector;
 using UtagoeGui.Models;
 using UtagoeGui.ViewModels;
 
@@ -60,6 +54,29 @@ namespace UtagoeGui.Views
                 this.notesGrid.Children.Add(noteLineBorder);
             }
 
+            this.ViewModel.PropertyChanged += (_, e) =>
+            {
+                switch (e.PropertyName)
+                {
+                    case nameof(MainWindowViewModel.NoteBlocks):
+                        this.OnUpdatedNoteBlocks();
+                        break;
+                    case nameof(MainWindowViewModel.ScoreWidth):
+                        this.OnUpdatedScale();
+                        break;
+                    case nameof(MainWindowViewModel.PlaybackPositionBarLeftMargin):
+                        this.UpdatePlaybackPositionBar();
+                        break;
+                }
+            };
+
+            this.ViewModel.FileSelectionRequested += (_, __) =>
+            {
+                if (this._openFileDialog.ShowDialog(this) == true)
+                {
+                    this.ViewModel.SelectedFile(this._openFileDialog.FileName);
+                }
+            };
         }
 
         private MainWindowViewModel ViewModel => (MainWindowViewModel)this.DataContext;
@@ -69,17 +86,6 @@ namespace UtagoeGui.Views
             Filter = "すべてのファイル|*"
         };
 
-        private const double MinUnitWidth = 3;
-        private double _unitWidth = 10;
-        private int _unitCount;
-
-        private WaveStream _waveStream;
-        private readonly WaveOutEvent _player = new WaveOutEvent();
-        private readonly DispatcherTimer _playerTimer;
-        private double _currentPlaybackPosition; // AnalysisUnit 何個分かで見る
-        private long _playbackStartPosition;
-        private bool _stoppingPlaybackManually;
-
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             this.ViewModel.Initialize();
@@ -87,12 +93,12 @@ namespace UtagoeGui.Views
 
         private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
         {
+            this.OnUpdatedScale();
+
             this.verticalScrollBar.Maximum = Math.Max(
                 0,
                 this.mainContentGrid.ActualHeight - this.mainContentContainer.ActualHeight
             );
-
-            this.UpdateHorizontalScrollBar();
         }
 
         private void verticalScrollBar_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -106,14 +112,6 @@ namespace UtagoeGui.Views
             e.Handled = true;
         }
 
-        private void UpdateHorizontalScrollBar()
-        {
-            this.horizontalScrollBar.Maximum = Math.Max(
-                0,
-                this.notesGrid.Width - (this.mainContentGrid.ActualWidth - this.noteNamesGrid.ActualWidth)
-            );
-        }
-
         private void horizontalScrollBar_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             this.horizontalScrollBar_ValueChanged();
@@ -125,84 +123,53 @@ namespace UtagoeGui.Views
             this.UpdatePlaybackPositionBar();
         }
 
-        private void zoomInButton_Click(object sender, RoutedEventArgs e)
+        private void OnUpdatedScale()
         {
-            this.UpdateZoom(this._unitWidth * 2);
+            var scrollRate = this.horizontalScrollBar.Value / this.horizontalScrollBar.Maximum;
+            var newMaximum = Math.Max(
+                0,
+                this.ViewModel.ScoreWidth - (this.mainContentGrid.ActualWidth - this.noteNamesGrid.ActualWidth)
+            );
+
+            this.horizontalScrollBar.Maximum = newMaximum;
+            this.horizontalScrollBar.Value = scrollRate * newMaximum;
         }
 
-        private void zoomOutButton_Click(object sender, RoutedEventArgs e)
+        private void OnUpdatedNoteBlocks()
         {
-            this.UpdateZoom(Math.Max(this._unitWidth / 2, MinUnitWidth));
-        }
+            var childrenSnapshot = this.notesGrid.Children
+                .OfType<NoteBlock>()
+                .ToArray();
 
-        private void UpdateZoom(double unitWidth)
-        {
-            var newScrollValue = this.horizontalScrollBar.Value * unitWidth / this._unitWidth;
-            this._unitWidth = unitWidth;
-            this.notesGrid.Width = unitWidth * this._unitCount;
-            this.UpdateHorizontalScrollBar();
-            this.horizontalScrollBar.Value = newScrollValue;
-        }
+            var newNoteBlocks = this.ViewModel.NoteBlocks;
 
-        private async void openButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (this._player.PlaybackState == PlaybackState.Playing)
-                this.PausePlayback();
+            for (var i = 0; ; i++)
+            {
+                if (i < childrenSnapshot.Length)
+                {
+                    if (i < newNoteBlocks.Length)
+                    {
+                        // 使いまわす
+                        childrenSnapshot[i].DataContext = newNoteBlocks[i];
+                    }
+                    else
+                    {
+                        // 余った View を削除
+                        this.notesGrid.Children.Remove(childrenSnapshot[i]);
+                    }
+                }
+                else if (i < newNoteBlocks.Length)
+                {
+                    // 新規作成
+                    this.notesGrid.Children.Add(new NoteBlock() { DataContext = newNoteBlocks[i] });
+                }
+                else
+                {
+                    break;
+                }
+            }
 
-            if (this._openFileDialog.ShowDialog(this) != true) return;
-
-            this.loadingGrid.Visibility = Visibility.Visible;
-
-            var classifierIndex = classifierComboBox.SelectedIndex;
-            var blocks = await Task.Run(() => this.OpenFileAsync(this._openFileDialog.FileName, classifierIndex));
-
-            // 今あるものを全部削除
-            this.notesGrid.Children.Clear();
-
-            // リサイズ
-            this.UpdateZoom(this._unitWidth);
-            this.horizontalScrollBar.Value = 0;
             this.horizontalScrollBar_ValueChanged();
-
-            // Grid のカラム数を合わせる
-            var oldColumnCount = this.notesGrid.ColumnDefinitions.Count;
-            if (oldColumnCount < this._unitCount)
-            {
-                for (var i = oldColumnCount; i < this._unitCount; i++)
-                    this.notesGrid.ColumnDefinitions.Add(new ColumnDefinition());
-            }
-            else if (oldColumnCount > this._unitCount)
-            {
-                this.notesGrid.ColumnDefinitions.RemoveRange(this._unitCount, oldColumnCount - this._unitCount);
-            }
-
-            // Border をつくる
-            for (var i = 0; i <= 127; i++)
-            {
-                var border = new Border()
-                {
-                    BorderThickness = new Thickness(0, 0.5, 0, 0.5),
-                    BorderBrush = SystemColors.InactiveBorderBrush
-                };
-                Grid.SetRow(border, i);
-                Grid.SetColumnSpan(border, this._unitCount);
-                this.notesGrid.Children.Add(border);
-            }
-
-            // ブロックを作る
-            foreach (var x in blocks)
-            {
-                var block = new NoteBlock()
-                {
-                    Text = VowelClassifier.VowelTypeToString(x.VowelType)
-                };
-                Grid.SetRow(block, 127 - x.NoteNumber);
-                Grid.SetColumn(block, x.Start);
-                Grid.SetColumnSpan(block, x.Span);
-                this.notesGrid.Children.Add(block);
-            }
-
-            this.loadingGrid.Visibility = Visibility.Collapsed;
         }
 
         private Point? _mousePosition;
@@ -299,63 +266,19 @@ namespace UtagoeGui.Views
             e.Handled = true;
         }
 
-        private void ReloadPlaybackPosition(bool scroll)
-        {
-            this._currentPlaybackPosition = (double)(this._player.GetPosition() + this._playbackStartPosition)
-                / this._waveStream.WaveFormat.BlockAlign
-                / AnalysisUnit;
-
-            this.UpdatePlaybackPositionBar();
-
-            if (scroll)
-            {
-                if (this.playbackPositionBar.Margin.Left >= this.mainContentGrid.ActualWidth - 1)
-                {
-                    this.horizontalScrollBar.Value = this._currentPlaybackPosition * this._unitWidth;
-                }
-            }
-        }
-
         private void UpdatePlaybackPositionBar()
         {
-            this.playbackPositionBar.Margin = new Thickness(
-                this.noteNamesGrid.ActualWidth - this.horizontalScrollBar.Value + this._unitWidth * (this._currentPlaybackPosition - 0.5),
-                0, 0, 0
-            );
-        }
+            var newLeftMargin = this.noteNamesGrid.ActualWidth - this.horizontalScrollBar.Value + this.ViewModel.PlaybackPositionBarLeftMargin;
 
-        private void playButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (this._player.PlaybackState == PlaybackState.Playing)
+            if (newLeftMargin >= this.mainContentGrid.ActualWidth - 1)
             {
-                this.PausePlayback();
+                // バーが右のほうにすっ飛んでいっているのでスクロール
+                this.horizontalScrollBar.Value = this.ViewModel.PlaybackPositionBarLeftMargin;
             }
-            else if (this._waveStream != null)
+            else
             {
-                this.PlayFromPosition(this._currentPlaybackPosition);
+                this.playbackPositionBar.Margin = new Thickness(newLeftMargin, 0, 0, 0);
             }
-        }
-
-        private void PausePlayback()
-        {
-            this._player.Pause();
-            this._playerTimer.Stop();
-            this.ReloadPlaybackPosition(true);
-        }
-
-        private void PlayFromPosition(double pos)
-        {
-            if (this._player.PlaybackState != PlaybackState.Stopped)
-            {
-                this._stoppingPlaybackManually = true;
-                this._player.Stop();
-            }
-
-            this._playbackStartPosition = (long)(this._waveStream.BlockAlign * AnalysisUnit * pos);
-            this._waveStream.Position = this._playbackStartPosition;
-            this._player.Init(this._waveStream);
-            this._player.Play();
-            this._playerTimer.Start();
         }
 
         private void mainContentContainer_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -366,19 +289,7 @@ namespace UtagoeGui.Views
 
         private void MovePlaybackPosition(MouseEventArgs e)
         {
-            if (this._waveStream == null) return;
-
-            var pos = e.GetPosition(this.notesGrid).X / this._unitWidth + 0.5;
-
-            if (this._player.PlaybackState == PlaybackState.Playing)
-            {
-                this.PlayFromPosition(pos);
-            }
-            else
-            {
-                this._currentPlaybackPosition = pos;
-                this.UpdatePlaybackPositionBar();
-            }
+            this.ViewModel.MovePlaybackPosition(e.GetPosition(this.notesGrid).X);
         }
     }
 }

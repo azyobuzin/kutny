@@ -12,6 +12,8 @@ namespace UtagoeGui.Models
         void TogglePlaybackState();
         void StopPlayback();
         void MovePlaybackPosition(double positionInSamples);
+        void ZoomIn();
+        void ZoomOut();
     }
 
     public class AppModel : IAppActions
@@ -98,6 +100,25 @@ namespace UtagoeGui.Models
         {
             if (this._player == null)
                 throw new InvalidOperationException("ファイルが読み込まれていません。");
+        }
+
+        public void ZoomIn()
+        {
+            this._store.ScoreScale *= 2;
+            this._store.CanZoomOut = true;
+        }
+
+        public void ZoomOut()
+        {
+            const double minimumScale = 0.25;
+
+            var scale = Math.Max(
+                this._store.ScoreScale / 2,
+                minimumScale
+            );
+
+            this._store.ScoreScale = scale;
+            this._store.CanZoomOut = Math.Abs(scale - minimumScale) > double.Epsilon;
         }
     }
 }

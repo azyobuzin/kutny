@@ -13,6 +13,8 @@ namespace UtagoeGui.Models
         VoiceAnalysisResult VoiceAnalysisResult { get; }
         bool IsPlaying { get; }
         double PlaybackPositionInSamples { get; }
+        double ScoreScale { get; }
+        bool CanZoomOut { get; }
     }
 
     internal class AppStore : NotificationObject2, IAppStore
@@ -50,6 +52,20 @@ namespace UtagoeGui.Models
         {
             get => this._playbackPositionInSamples;
             set => this.Set(ref this._playbackPositionInSamples, value);
+        }
+
+        private double _scoreScale = 1.0;
+        public double ScoreScale
+        {
+            get => this._scoreScale;
+            set => this.Set(ref this._scoreScale, value);
+        }
+
+        private bool _canZoomOut = true;
+        public bool CanZoomOut
+        {
+            get => this._canZoomOut;
+            set => this.Set(ref this._canZoomOut, value);
         }
     }
 }

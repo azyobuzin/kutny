@@ -21,7 +21,27 @@ namespace UtagoeGui.Models
         {
             this._store = writableStore;
             this._waveStream = waveStream;
-            this._timer = new Timer(_ => this.SetPositionToStore());
+
+            this._timer = new Timer(_ =>
+            {
+                if (!this._isDisposed)
+                    this.SetPositionToStore();
+            });
+
+            this._player.PlaybackStopped += (sender, e) =>
+            {
+                if (this._isDisposed) return;
+
+                if (this._stoppingPlaybackManually)
+                {
+                    this._stoppingPlaybackManually = false;
+                }
+                else
+                {
+                    this.StopTimer();
+                    this._store.PlaybackPositionInSamples = 0;
+                }
+            };
         }
 
         public void TogglePlaybackState()
@@ -32,18 +52,19 @@ namespace UtagoeGui.Models
             }
             else
             {
-                this.PlayFromPosition(this._store.PlaybackPositionInSamples);
+                this.ResumeFromPlaybackPosition();
             }
         }
 
         public void Stop()
         {
-            // TODO
+            if (this._player.PlaybackState == PlaybackState.Playing)
+                this.Pause();
         }
 
         public void MovePlaybackPosition(double positionInSamples)
         {
-            // TODO
+            this._store.PlaybackPositionInSamples = positionInSamples;
         }
 
         public void Dispose()
@@ -51,25 +72,29 @@ namespace UtagoeGui.Models
             if (this._isDisposed) return;
             this._isDisposed = true;
 
+            this._store.IsPlaying = false;
+
             this._timer.Dispose();
-            this._stoppingPlaybackManually = true;
             this._player.Dispose();
             this._waveStream.Dispose();
         }
 
         private void StartTimer()
         {
+            this._store.IsPlaying = true;
             this._timer.Change(TimeSpan.Zero, s_timerInterval);
         }
 
         private void StopTimer()
         {
+            this._store.IsPlaying = false;
             this._timer.Change(Timeout.Infinite, Timeout.Infinite);
         }
 
         private void SetPositionToStore()
         {
-            // TODO
+            this._store.PlaybackPositionInSamples = (this._playbackStartPosition + this._player.GetPosition())
+                / (double)this._waveStream.WaveFormat.BlockAlign;
         }
 
         private void Pause()
@@ -79,7 +104,7 @@ namespace UtagoeGui.Models
             this.SetPositionToStore();
         }
 
-        private void PlayFromPosition(double pos)
+        private void ResumeFromPlaybackPosition()
         {
             if (this._player.PlaybackState != PlaybackState.Stopped)
             {
@@ -87,7 +112,7 @@ namespace UtagoeGui.Models
                 this._player.Stop();
             }
 
-            this._playbackStartPosition = (long)(this._waveStream.BlockAlign * pos);
+            this._playbackStartPosition = (long)(this._waveStream.BlockAlign * this._store.PlaybackPositionInSamples);
             this._waveStream.Position = this._playbackStartPosition;
             this._player.Init(this._waveStream);
             this._player.Play();

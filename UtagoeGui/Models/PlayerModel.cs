@@ -1,6 +1,6 @@
-﻿using NAudio.Wave;
-using System;
+﻿using System;
 using System.Threading;
+using NAudio.Wave;
 
 namespace UtagoeGui.Models
 {
@@ -43,6 +43,8 @@ namespace UtagoeGui.Models
                 }
             };
         }
+
+        public int SampleRate => this._waveStream.WaveFormat.SampleRate;
 
         public void TogglePlaybackState()
         {

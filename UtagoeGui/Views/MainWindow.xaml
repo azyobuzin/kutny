@@ -18,7 +18,7 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Orientation="Horizontal">
-            <Button Name="openButton" Content="開く" Width="50" Command="{Binding OpenFileCommand}" />
+            <Button Name="openButton" Content="開く" Width="50" Command="{Binding OpenAudioFileCommand}" />
             <Button Name="playButton" Content="{Binding PlayButtonText}" Width="50" Command="{Binding PlayCommand}" />
             <Button Name="zoomInButton" Content="拡大" Width="50" Command="{Binding ZoomInCommand}" />
             <Button Name="zoomOutButton" Content="縮小" Width="50" Command="{Binding ZoomOutCommand}" />

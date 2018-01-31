@@ -1,11 +1,15 @@
-﻿using PitchDetector;
+﻿using System;
+using PitchDetector;
 
 namespace UtagoeGui.Models
 {
-    public class NoteBlockInfo
+    public class NoteBlockModel
     {
-        public NoteBlockInfo(int start, int noteNumber, VowelType vowelType)
+        public NoteBlockModel(int start, int noteNumber, VowelType vowelType)
         {
+            if (noteNumber > Logics.MaximumNoteNumber || noteNumber < Logics.MinimumNoteNumber)
+                throw new ArgumentOutOfRangeException(nameof(noteNumber));
+
             this.Start = start;
             this.NoteNumber = noteNumber;
             this.VowelType = vowelType;
@@ -17,7 +21,7 @@ namespace UtagoeGui.Models
         public VowelType VowelType { get; }
         public int Span { get; internal set; }
 
-        internal bool MergeIfPossible(NoteBlockInfo other)
+        internal bool MergeIfPossible(NoteBlockModel other)
         {
             if (other.Start == this.Start + this.Span
                 && other.NoteNumber == this.NoteNumber

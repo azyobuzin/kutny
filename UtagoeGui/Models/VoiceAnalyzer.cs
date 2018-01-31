@@ -1,11 +1,11 @@
-﻿using NAudio.Wave;
-using PitchDetector;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using NAudio.Wave;
+using PitchDetector;
 
 namespace UtagoeGui.Models
 {
@@ -51,13 +51,15 @@ namespace UtagoeGui.Models
 
         public async ValueTask<VoiceAnalysisResult> Analyze(VowelClassifierType classifierType, ISampleProvider provider)
         {
+            // TODO: あまりにも無駄な再計算が多い & 並列化しろ
+
             const int vowelWindowSize = 2048;
             const int pitchWindowSize = 1024;
 
             provider = provider.ToMono();
             var sampleRate = provider.WaveFormat.SampleRate;
 
-            var blocks = new List<NoteBlockInfo>();
+            var blocks = new List<NoteBlockModel>();
 
             var classifier = await this._vowelClassifierTasks[classifierType].ConfigureAwait(false);
             var samples = new float[Logics.AnalysisUnit];
@@ -128,7 +130,7 @@ namespace UtagoeGui.Models
                 var basicFreq = basicFreqs[basicFreqs.Count / 2]; // 中央値
                 var noteNum = Utils.HzToMidiNote(basicFreq);
 
-                var block = new NoteBlockInfo(unitCount, noteNum, vowelCandidate.Value);
+                var block = new NoteBlockModel(unitCount, noteNum, vowelCandidate.Value);
 
                 if (blocks.Count == 0 || !blocks[blocks.Count - 1].MergeIfPossible(block))
                     blocks.Add(block);

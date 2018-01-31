@@ -1,8 +1,8 @@
-﻿using Livet.Commands;
-using Livet.EventListeners;
-using System;
+﻿using System;
 using System.Collections.Immutable;
 using System.Windows;
+using Livet.Commands;
+using Livet.EventListeners;
 using UtagoeGui.Infrastructures;
 using UtagoeGui.Models;
 
@@ -74,7 +74,7 @@ namespace UtagoeGui.ViewModels
 
         #region イベント
 
-        public event EventHandler FileSelectionRequested;
+        public event EventHandler AudioFileSelectionRequested;
 
         #endregion
 
@@ -82,12 +82,12 @@ namespace UtagoeGui.ViewModels
 
         private ViewModelCommand _openFileCommand;
         [ChangeCanExecuteWhenModelPropertyChange(nameof(IAppStore.IsWorking))]
-        public ViewModelCommand OpenFileCommand => CreateCommand(
+        public ViewModelCommand OpenAudioFileCommand => CreateCommand(
             ref this._openFileCommand,
             () =>
             {
                 this.Actions.StopPlayback();
-                this.FileSelectionRequested?.Invoke(this, EventArgs.Empty);
+                this.AudioFileSelectionRequested?.Invoke(this, EventArgs.Empty);
             },
             () => !this.Store.IsWorking
         );
@@ -123,9 +123,9 @@ namespace UtagoeGui.ViewModels
             this.Actions.Initialize();
         }
 
-        public void SelectedFile(string fileName)
+        public void SelectedAudioFile(string fileName)
         {
-            this.Actions.OpenFile(fileName);
+            this.Actions.OpenAudioFile(fileName);
         }
 
         public void MovePlaybackPosition(double x)

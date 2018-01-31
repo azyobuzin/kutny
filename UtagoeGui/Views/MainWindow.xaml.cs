@@ -1,9 +1,9 @@
-﻿using Microsoft.Win32;
-using System;
+﻿using System;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Microsoft.Win32;
 using UtagoeGui.Models;
 using UtagoeGui.ViewModels;
 
@@ -70,11 +70,11 @@ namespace UtagoeGui.Views
                 }
             };
 
-            this.ViewModel.FileSelectionRequested += (_, __) =>
+            this.ViewModel.AudioFileSelectionRequested += (_, __) =>
             {
                 if (this._openFileDialog.ShowDialog(this) == true)
                 {
-                    this.ViewModel.SelectedFile(this._openFileDialog.FileName);
+                    this.ViewModel.SelectedAudioFile(this._openFileDialog.FileName);
                 }
             };
         }
@@ -172,6 +172,8 @@ namespace UtagoeGui.Views
             this.horizontalScrollBar_ValueChanged();
         }
 
+        #region マウス右ボタンでスクロール
+
         private Point? _mousePosition;
 
         private void mainContentContainer_MouseMove(object sender, MouseEventArgs e)
@@ -224,6 +226,10 @@ namespace UtagoeGui.Views
             e.Handled = true;
         }
 
+        #endregion
+
+        #region タッチでスクロール
+
         private Point? _touchPosition;
 
         private void mainContentContainer_TouchMove(object sender, TouchEventArgs e)
@@ -265,6 +271,8 @@ namespace UtagoeGui.Views
             this._touchPosition = null;
             e.Handled = true;
         }
+
+        #endregion
 
         private void UpdatePlaybackPositionBar()
         {

@@ -1,5 +1,4 @@
-﻿using System.Windows;
-using System.Windows.Controls;
+﻿using System.Windows.Controls;
 
 namespace UtagoeGui.Views
 {
@@ -12,17 +11,5 @@ namespace UtagoeGui.Views
         {
             InitializeComponent();
         }
-
-        //public string Text
-        //{
-        //    get => (string)this.GetValue(TextProperty);
-        //    set => this.SetValue(TextProperty, value);
-        //}
-
-        //public static readonly DependencyProperty TextProperty =
-        //    DependencyProperty.Register(
-        //        "Text", typeof(string), typeof(NoteBlock),
-        //        new PropertyMetadata("", (d, e) => ((NoteBlock)d).textBlock.Text = (string)e.NewValue)
-        //    );
     }
 }

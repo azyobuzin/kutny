@@ -4,10 +4,10 @@ namespace UtagoeGui.Models
 {
     public class VoiceAnalysisResult
     {
-        public ImmutableArray<NoteBlockInfo> NoteBlocks { get; }
+        public ImmutableArray<NoteBlockModel> NoteBlocks { get; }
         public int UnitCount { get; }
 
-        public VoiceAnalysisResult(ImmutableArray<NoteBlockInfo> noteBlocks, int unitCount)
+        public VoiceAnalysisResult(ImmutableArray<NoteBlockModel> noteBlocks, int unitCount)
         {
             this.NoteBlocks = noteBlocks;
             this.UnitCount = unitCount;

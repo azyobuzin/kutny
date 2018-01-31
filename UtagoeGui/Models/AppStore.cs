@@ -1,4 +1,6 @@
-﻿using System.ComponentModel;
+﻿using System.Collections.Immutable;
+using System.ComponentModel;
+using StatefulModel;
 using UtagoeGui.Infrastructures;
 
 namespace UtagoeGui.Models
@@ -15,6 +17,10 @@ namespace UtagoeGui.Models
         double PlaybackPositionInSamples { get; }
         double ScoreScale { get; }
         bool CanZoomOut { get; }
+        bool IsEditingCorrectData { get; }
+        ImmutableArray<CorrectNoteBlockModel> CorrectNoteBlocks { get; }
+        double CorrectDataStartPositionInAnalysisUnits { get; }
+        ReadOnlyNotifyChangedCollection<TempoSetting> TempoSettings { get; }
     }
 
     internal class AppStore : NotificationObject2, IAppStore
@@ -67,5 +73,32 @@ namespace UtagoeGui.Models
             get => this._canZoomOut;
             set => this.Set(ref this._canZoomOut, value);
         }
+
+        private bool _isEditingCorrectData;
+        public bool IsEditingCorrectData
+        {
+            get => this._isEditingCorrectData;
+            set => this.Set(ref this._isEditingCorrectData, value);
+        }
+
+        private ImmutableArray<CorrectNoteBlockModel> _correctNoteBlocks;
+        public ImmutableArray<CorrectNoteBlockModel> CorrectNoteBlocks
+        {
+            get => this._correctNoteBlocks;
+            set => this.Set(ref this._correctNoteBlocks, value);
+        }
+
+        private double _correctDataStartPositionInUnits;
+        public double CorrectDataStartPositionInAnalysisUnits
+        {
+            get => this._correctDataStartPositionInUnits;
+            set => this.Set(ref this._correctDataStartPositionInUnits, value);
+        }
+
+        public SortedObservableCollection<TempoSetting, int> TempoSettings { get; } = new SortedObservableCollection<TempoSetting, int>(x => x.Position);
+
+        private ReadOnlyNotifyChangedCollection<TempoSetting> _readOnlyTempoSettings;
+        ReadOnlyNotifyChangedCollection<TempoSetting> IAppStore.TempoSettings => this._readOnlyTempoSettings
+            ?? (this._readOnlyTempoSettings = this.TempoSettings.ToSyncedReadOnlyNotifyChangedCollection());
     }
 }

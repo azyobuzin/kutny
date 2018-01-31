@@ -1,5 +1,5 @@
-﻿using PitchDetector;
-using System.Windows;
+﻿using System.Windows;
+using PitchDetector;
 using UtagoeGui.Infrastructures;
 using UtagoeGui.Models;
 
@@ -7,10 +7,10 @@ namespace UtagoeGui.ViewModels
 {
     public class NoteBlockViewModel : ViewModel2
     {
-        private readonly NoteBlockInfo _model;
+        private readonly NoteBlockModel _model;
         private readonly IAppStore _appStore;
 
-        public NoteBlockViewModel(NoteBlockInfo model, IAppStore appStore)
+        public NoteBlockViewModel(NoteBlockModel model, IAppStore appStore)
         {
             this._model = model;
             this._appStore = appStore;

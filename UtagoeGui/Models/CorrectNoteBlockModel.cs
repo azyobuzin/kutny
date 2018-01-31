@@ -18,7 +18,7 @@ namespace UtagoeGui.Models
             this.Length = length;
             this.NoteNumber = noteNumber;
             this.Lyric = lyric;
-            // TODO: VowelType
+            this.VowelType = Logics.SyllabaryToVowelType(lyric);
         }
 
         public int Start { get; }

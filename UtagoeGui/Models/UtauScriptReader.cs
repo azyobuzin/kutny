@@ -12,7 +12,8 @@ namespace UtagoeGui.Models
     {
         private static readonly Encoding s_encoding = Encoding.GetEncoding(932); // Shift_JIS
         private readonly StreamReader _reader;
-        private readonly Dictionary<string, string> _fields;
+        private readonly Dictionary<string, string> _fields = new Dictionary<string, string>();
+        private bool _firstTime = true;
         private string _nextLine;
 
         public UtauScriptReader(Stream stream, bool leaveOpen = false)
@@ -30,6 +31,12 @@ namespace UtagoeGui.Models
 
         public bool ReadSection()
         {
+            if (this._firstTime)
+            {
+                this._nextLine = this._reader.ReadLine();
+                this._firstTime = false;
+            }
+
             if (string.IsNullOrEmpty(this._nextLine) || this._nextLine[0] != '[')
                 return false;
 

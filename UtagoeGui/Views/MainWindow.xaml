@@ -3,14 +3,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:vm="clr-namespace:UtagoeGui.ViewModels"
         mc:Ignorable="d"
         Title="UtagoeGui" Height="700" Width="1000"
-        Loaded="Window_Loaded" SizeChanged="Window_SizeChanged">
-    <Window.DataContext>
-        <vm:MainWindowViewModel />
-    </Window.DataContext>
-    
+        Loaded="Window_Loaded" SizeChanged="Window_SizeChanged"
+        DataContextChanged="Window_DataContextChanged">    
     <Grid Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}">
         <Grid.RowDefinitions>
             <RowDefinition Height="40" />
@@ -18,11 +14,12 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Orientation="Horizontal">
-            <Button Name="openButton" Content="開く" Width="50" Command="{Binding OpenAudioFileCommand}" />
-            <Button Name="playButton" Content="{Binding PlayButtonText}" Width="50" Command="{Binding PlayCommand}" />
-            <Button Name="zoomInButton" Content="拡大" Width="50" Command="{Binding ZoomInCommand}" />
-            <Button Name="zoomOutButton" Content="縮小" Width="50" Command="{Binding ZoomOutCommand}" />
-            <ComboBox Name="classifierComboBox" Margin="6" Width="135" SelectedIndex="{Binding SelectedClassifierIndex}" VerticalContentAlignment="Center">
+            <Button Content="開く" Width="60" Command="{Binding OpenAudioFileCommand}" />
+            <Button Content="{Binding PlayButtonText}" Width="60" Command="{Binding PlayCommand}" />
+            <Button Content="正解データ" Width="60" Command="{Binding EditCorrectScoreCommand}" />
+            <Button Content="拡大" Width="60" Command="{Binding ZoomInCommand}" />
+            <Button Content="縮小" Width="60" Command="{Binding ZoomOutCommand}" />
+            <ComboBox Margin="6" Width="135" SelectedIndex="{Binding SelectedClassifierIndex}" VerticalContentAlignment="Center">
                 <ComboBoxItem>SVM</ComboBoxItem>
                 <ComboBoxItem>Neural Network</ComboBoxItem>
                 <ComboBoxItem>Mel Spectrum SVM</ComboBoxItem>
@@ -50,7 +47,7 @@
                   TouchLeave="mainContentContainer_TouchUp"
                   MouseLeftButtonDown="mainContentContainer_MouseLeftButtonDown">
                 <Grid Name="mainContentGrid" Height="2816">
-                    <Grid Name="notesGrid" Width="{Binding ScoreWidth}" HorizontalAlignment="Left" />
+                    <Grid Name="notesGrid" HorizontalAlignment="Left" />
                     <Rectangle Name="playbackPositionBar" Width="1" Fill="Red" HorizontalAlignment="Left" />
                     <Grid Name="noteNamesGrid" Width="50" HorizontalAlignment="Left" Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}" />
                 </Grid>

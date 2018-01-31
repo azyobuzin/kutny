@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -53,30 +54,6 @@ namespace UtagoeGui.Views
                 Grid.SetRow(noteLineBorder, i);
                 this.notesGrid.Children.Add(noteLineBorder);
             }
-
-            this.ViewModel.PropertyChanged += (_, e) =>
-            {
-                switch (e.PropertyName)
-                {
-                    case nameof(MainWindowViewModel.NoteBlocks):
-                        this.OnUpdatedNoteBlocks();
-                        break;
-                    case nameof(MainWindowViewModel.ScoreWidth):
-                        this.OnUpdatedScale();
-                        break;
-                    case nameof(MainWindowViewModel.PlaybackPositionBarLeftMargin):
-                        this.UpdatePlaybackPositionBar();
-                        break;
-                }
-            };
-
-            this.ViewModel.AudioFileSelectionRequested += (_, __) =>
-            {
-                if (this._openFileDialog.ShowDialog(this) == true)
-                {
-                    this.ViewModel.SelectedAudioFile(this._openFileDialog.FileName);
-                }
-            };
         }
 
         private MainWindowViewModel ViewModel => (MainWindowViewModel)this.DataContext;
@@ -85,6 +62,51 @@ namespace UtagoeGui.Views
         {
             Filter = "すべてのファイル|*"
         };
+
+        private void Window_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            // ViewModel がセットされたので、イベントハンドラの設定
+
+            if (e.OldValue is MainWindowViewModel oldValue)
+            {
+                oldValue.PropertyChanged -= this.ViewModel_PropertyChanged;
+                oldValue.AudioFileSelectionRequested -= this.ViewModel_AudioFileSelectionRequested;
+            }
+
+            if (e.NewValue is MainWindowViewModel newValue)
+            {
+                newValue.PropertyChanged += this.ViewModel_PropertyChanged;
+                newValue.AudioFileSelectionRequested += this.ViewModel_AudioFileSelectionRequested;
+            }
+        }
+
+        private void ViewModel_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(MainWindowViewModel.NoteBlocks):
+                    this.OnUpdatedNoteBlocks();
+                    break;
+                case nameof(MainWindowViewModel.ScoreWidth):
+                    this.notesGrid.Width = this.ViewModel.ScoreWidth; // Binding うまくいかぬ
+                    this.OnUpdatedScale();
+                    break;
+                case nameof(MainWindowViewModel.PlaybackPositionBarLeftMargin):
+                    this.UpdatePlaybackPositionBar();
+                    break;
+                case nameof(MainWindowViewModel.CorrectNoteBlocks):
+                    this.OnUpdatedCorrectNoteBlocks();
+                    break;
+            }
+        }
+
+        private void ViewModel_AudioFileSelectionRequested(object sender, EventArgs e)
+        {
+            if (this._openFileDialog.ShowDialog(this) == true)
+            {
+                this.ViewModel.SelectedAudioFile(this._openFileDialog.FileName);
+            }
+        }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
@@ -170,6 +192,41 @@ namespace UtagoeGui.Views
             }
 
             this.horizontalScrollBar_ValueChanged();
+        }
+
+        private void OnUpdatedCorrectNoteBlocks()
+        {
+            var childrenSnapshot = this.notesGrid.Children
+               .OfType<CorrectNoteBlock>()
+               .ToArray();
+
+            var newNoteBlocks = this.ViewModel.CorrectNoteBlocks;
+
+            for (var i = 0; ; i++)
+            {
+                if (i < childrenSnapshot.Length)
+                {
+                    if (i < newNoteBlocks.Length)
+                    {
+                        // 使いまわす
+                        childrenSnapshot[i].DataContext = newNoteBlocks[i];
+                    }
+                    else
+                    {
+                        // 余った View を削除
+                        this.notesGrid.Children.Remove(childrenSnapshot[i]);
+                    }
+                }
+                else if (i < newNoteBlocks.Length)
+                {
+                    // 新規作成
+                    this.notesGrid.Children.Add(new CorrectNoteBlock() { DataContext = newNoteBlocks[i] });
+                }
+                else
+                {
+                    break;
+                }
+            }
         }
 
         #region マウス右ボタンでスクロール
@@ -278,7 +335,7 @@ namespace UtagoeGui.Views
         {
             var newLeftMargin = this.noteNamesGrid.ActualWidth - this.horizontalScrollBar.Value + this.ViewModel.PlaybackPositionBarLeftMargin;
 
-            if (newLeftMargin >= this.mainContentGrid.ActualWidth - 1)
+            if (newLeftMargin >= this.mainContentGrid.ActualWidth - 1 && this.ViewModel.Store.IsPlaying)
             {
                 // バーが右のほうにすっ飛んでいっているのでスクロール
                 this.horizontalScrollBar.Value = this.ViewModel.PlaybackPositionBarLeftMargin;

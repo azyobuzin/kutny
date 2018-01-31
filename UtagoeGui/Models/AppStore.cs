@@ -17,10 +17,14 @@ namespace UtagoeGui.Models
         double PlaybackPositionInSamples { get; }
         double ScoreScale { get; }
         bool CanZoomOut { get; }
-        bool IsEditingCorrectData { get; }
+        bool IsEditingCorrectScore { get; }
+        string CorrectScoreFileName { get; }
         ImmutableArray<CorrectNoteBlockModel> CorrectNoteBlocks { get; }
-        double CorrectDataStartPositionInAnalysisUnits { get; }
+        double CorrectScoreStartPositionInAnalysisUnits { get; }
         ReadOnlyNotifyChangedCollection<TempoSetting> TempoSettings { get; }
+        double PitchConcordanceRate { get; }
+        double VowelConcordanceRate { get; }
+        double VowelConcordanceRate2 { get; } // 「う」と「ん」を区別しない
     }
 
     internal class AppStore : NotificationObject2, IAppStore
@@ -74,25 +78,32 @@ namespace UtagoeGui.Models
             set => this.Set(ref this._canZoomOut, value);
         }
 
-        private bool _isEditingCorrectData;
-        public bool IsEditingCorrectData
+        private bool _isEditingCorrectScore;
+        public bool IsEditingCorrectScore
         {
-            get => this._isEditingCorrectData;
-            set => this.Set(ref this._isEditingCorrectData, value);
+            get => this._isEditingCorrectScore;
+            set => this.Set(ref this._isEditingCorrectScore, value);
         }
 
-        private ImmutableArray<CorrectNoteBlockModel> _correctNoteBlocks;
+        private string _correctScoreFileName;
+        public string CorrectScoreFileName
+        {
+            get => this._correctScoreFileName;
+            set => this.Set(ref this._correctScoreFileName, value);
+        }
+
+        private ImmutableArray<CorrectNoteBlockModel> _correctNoteBlocks = ImmutableArray<CorrectNoteBlockModel>.Empty;
         public ImmutableArray<CorrectNoteBlockModel> CorrectNoteBlocks
         {
             get => this._correctNoteBlocks;
             set => this.Set(ref this._correctNoteBlocks, value);
         }
 
-        private double _correctDataStartPositionInUnits;
-        public double CorrectDataStartPositionInAnalysisUnits
+        private double _correctScoreStartPositionInUnits;
+        public double CorrectScoreStartPositionInAnalysisUnits
         {
-            get => this._correctDataStartPositionInUnits;
-            set => this.Set(ref this._correctDataStartPositionInUnits, value);
+            get => this._correctScoreStartPositionInUnits;
+            set => this.Set(ref this._correctScoreStartPositionInUnits, value);
         }
 
         public SortedObservableCollection<TempoSetting, int> TempoSettings { get; } = new SortedObservableCollection<TempoSetting, int>(x => x.Position);
@@ -100,5 +111,26 @@ namespace UtagoeGui.Models
         private ReadOnlyNotifyChangedCollection<TempoSetting> _readOnlyTempoSettings;
         ReadOnlyNotifyChangedCollection<TempoSetting> IAppStore.TempoSettings => this._readOnlyTempoSettings
             ?? (this._readOnlyTempoSettings = this.TempoSettings.ToSyncedReadOnlyNotifyChangedCollection());
+
+        private double _pitchConcordanceRate;
+        public double PitchConcordanceRate
+        {
+            get => this._pitchConcordanceRate;
+            set => this.Set(ref this._pitchConcordanceRate, value);
+        }
+
+        private double _vowelConcordanceRate;
+        public double VowelConcordanceRate
+        {
+            get => this._vowelConcordanceRate;
+            set => this.Set(ref this._vowelConcordanceRate, value);
+        }
+
+        private double _vowelConcordanceRate2;
+        public double VowelConcordanceRate2
+        {
+            get => this._vowelConcordanceRate2;
+            set => this.Set(ref this._vowelConcordanceRate2, value);
+        }
     }
 }

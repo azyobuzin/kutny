@@ -55,6 +55,14 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Page Include="Views\CorrectNoteBlock.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\EditCorrectScoreWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Views\MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -63,8 +71,10 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Infrastructures\ChangeCanExecuteWhenThisPropertyChangeAttribute.cs" />
     <Compile Include="Infrastructures\ChangeCanExecuteWhenModelPropertyChangeAttribute.cs" />
     <Compile Include="Infrastructures\ChangeValueWhenModelPropertyChangeAttribute.cs" />
+    <Compile Include="Infrastructures\ValidationMethodAttribute.cs" />
     <Compile Include="Infrastructures\ViewModel2.cs" />
     <Compile Include="Models\AppStore.cs" />
     <Compile Include="Models\CorrectNoteBlockModel.cs" />
@@ -77,8 +87,17 @@
     <Compile Include="Models\VoiceAnalyzer.cs" />
     <Compile Include="Models\VowelClassifierType.cs" />
     <Compile Include="Infrastructures\NotificationObject2.cs" />
+    <Compile Include="ViewModels\CorrectNoteBlockViewModel.cs" />
+    <Compile Include="ViewModels\EditCorrectScoreWindowViewModel.cs" />
     <Compile Include="ViewModels\MainWindowViewModel.cs" />
     <Compile Include="ViewModels\NoteBlockViewModel.cs" />
+    <Compile Include="ViewModels\TempoSettingViewModel.cs" />
+    <Compile Include="Views\CorrectNoteBlock.xaml.cs">
+      <DependentUpon>CorrectNoteBlock.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\EditCorrectScoreWindow.xaml.cs">
+      <DependentUpon>EditCorrectScoreWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>

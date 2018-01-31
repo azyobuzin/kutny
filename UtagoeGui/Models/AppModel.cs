@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using NAudio.Wave;
+using PitchDetector;
 
 namespace UtagoeGui.Models
 {
@@ -19,9 +20,13 @@ namespace UtagoeGui.Models
         void MovePlaybackPosition(double positionInSamples);
         void ZoomIn();
         void ZoomOut();
-        void OpenCorrectData(string fileName);
+        void OpenCorrectScoreWindow();
+        void CloseCorrectScoreWindow();
+        void OpenCorrectScore(string fileName);
+        void MoveCorrectScoreStartPosition(double startPositionInAnalysisUnits);
         void AddTempoSetting(double tempo, int position);
         void RemoveTempoSetting(int index);
+        void CloseCorrectScore();
     }
 
     public class AppModel : IAppActions
@@ -32,7 +37,7 @@ namespace UtagoeGui.Models
         private bool _isInitialized;
         private VoiceAnalyzer _voiceAnalyzer;
         private PlayerModel _player;
-        private double _correctDataDefaultTempo;
+        private double _correctScoreDefaultTempo;
 
         public void Initialize()
         {
@@ -85,6 +90,8 @@ namespace UtagoeGui.Models
                 this._store.VoiceAnalysisResult = analysisResult;
                 this._store.PlaybackPositionInSamples = 0;
                 this._store.IsWorking = false;
+
+                this.CalculateConcordanceRate();
             });
         }
 
@@ -130,7 +137,17 @@ namespace UtagoeGui.Models
             this._store.CanZoomOut = Math.Abs(scale - minimumScale) > double.Epsilon;
         }
 
-        public void OpenCorrectData(string fileName)
+        public void OpenCorrectScoreWindow()
+        {
+            this._store.IsEditingCorrectScore = true;
+        }
+
+        public void CloseCorrectScoreWindow()
+        {
+            this._store.IsEditingCorrectScore = false;
+        }
+
+        public void OpenCorrectScore(string fileName)
         {
             var correctNoteBlocksBuilder = ImmutableArray.CreateBuilder<CorrectNoteBlockModel>();
             TempoSetting tempoSetting;
@@ -145,12 +162,12 @@ namespace UtagoeGui.Models
 
                     if (reader.SectionName == "#SETTING")
                     {
-                        this._correctDataDefaultTempo = double.Parse(reader.GetField("Tempo"), CultureInfo.InvariantCulture);
+                        this._correctScoreDefaultTempo = double.Parse(reader.GetField("Tempo"), CultureInfo.InvariantCulture);
                         break;
                     }
                 }
 
-                tempoSetting = new TempoSetting(this._correctDataDefaultTempo, 0);
+                tempoSetting = new TempoSetting(this._correctScoreDefaultTempo, 0);
                 var tempoSettings = ImmutableArray.Create(tempoSetting);
 
                 // ノート取得
@@ -183,18 +200,29 @@ namespace UtagoeGui.Models
                 ? correctNoteBlocksBuilder.MoveToImmutable()
                 : correctNoteBlocksBuilder.ToImmutable();
 
-            this.ApplyTempoSettings(correctNoteBlocks);
-
             this._store.TempoSettings.Clear();
             this._store.TempoSettings.Add(tempoSetting);
-            this._store.CorrectDataStartPositionInAnalysisUnits = 0;
+            this.ApplyTempoSettings(correctNoteBlocks);
+
+            this._store.CorrectScoreFileName = Path.GetFileName(fileName);
+            this._store.CorrectScoreStartPositionInAnalysisUnits = 0;
             this._store.CorrectNoteBlocks = correctNoteBlocks;
+
+            this.CalculateConcordanceRate();
+        }
+
+        public void MoveCorrectScoreStartPosition(double startPositionInAnalysisUnits)
+        {
+            this._store.CorrectScoreStartPositionInAnalysisUnits = startPositionInAnalysisUnits;
+            this.ApplyTempoSettings(this._store.CorrectNoteBlocks);
+            this.CalculateConcordanceRate();
         }
 
         public void AddTempoSetting(double tempo, int position)
         {
             this._store.TempoSettings.Add(new TempoSetting(tempo, position));
             this.ApplyTempoSettings(this._store.CorrectNoteBlocks);
+            this.CalculateConcordanceRate();
         }
 
         public void RemoveTempoSetting(int index)
@@ -203,20 +231,23 @@ namespace UtagoeGui.Models
 
             // 全部消されたか、初期値が入っていなかったらデフォルト値を代入
             if (this._store.TempoSettings.Count == 0 || this._store.TempoSettings[0].Position != 0)
-                this._store.TempoSettings.Add(new TempoSetting(this._correctDataDefaultTempo, 0));
+                this._store.TempoSettings.Add(new TempoSetting(this._correctScoreDefaultTempo, 0));
 
             this.ApplyTempoSettings(this._store.CorrectNoteBlocks);
+            this.CalculateConcordanceRate();
         }
 
         private void ApplyTempoSettings(ImmutableArray<CorrectNoteBlockModel> noteBlocks)
         {
-            var startPos = this._store.CorrectDataStartPositionInAnalysisUnits;
+            this.EnsurePlayerInitialized(); // ConvertTicksToAnalysisUnits で使うので
+
+            var startPos = this._store.CorrectScoreStartPositionInAnalysisUnits;
             var tempoSettingsSnapshot = this._store.TempoSettings.ToArray();
 
             if (tempoSettingsSnapshot.Length == 0)
                 throw new InvalidOperationException();
 
-            foreach (var x in this._store.CorrectNoteBlocks)
+            foreach (var x in noteBlocks)
             {
                 var start = PositionToAnalysisUnits(x.Start);
                 var end = PositionToAnalysisUnits(x.Start + x.Length);
@@ -233,20 +264,112 @@ namespace UtagoeGui.Models
                     var currentTempoSetting = tempoSettingsSnapshot[i];
                     var nextTempoSetting = i < tempoSettingsSnapshot.Length - 1 ? tempoSettingsSnapshot[i + 1] : null;
 
-                    if (nextTempoSetting == null || nextTempoSetting.Position < position)
+                    if (nextTempoSetting == null || position < nextTempoSetting.Position)
                     {
-                        return baseTime + ConvertLengthToAnalysisUnits(position - currentTempoSetting.Position, currentTempoSetting.Tempo);
+                        return baseTime + ConvertTicksToAnalysisUnits(position - currentTempoSetting.Position, currentTempoSetting.Tempo);
                     }
 
-                    baseTime += ConvertLengthToAnalysisUnits(nextTempoSetting.Position - currentTempoSetting.Position, currentTempoSetting.Tempo);
+                    baseTime += ConvertTicksToAnalysisUnits(nextTempoSetting.Position - currentTempoSetting.Position, currentTempoSetting.Tempo);
                 }
             }
 
-            double ConvertLengthToAnalysisUnits(int length, double tempo)
+            double ConvertTicksToAnalysisUnits(int ticks, double tempo)
             {
-                var secs = 60.0 / 480.0 / tempo * length;
+                var secs = 60.0 / 480.0 / tempo * ticks;
                 return this._player.SampleRate * secs / Logics.AnalysisUnit;
             }
+        }
+
+        private void CalculateConcordanceRate()
+        {
+            var correctNoteBlocks = this._store.CorrectNoteBlocks; // ソート済みと仮定
+
+            if (correctNoteBlocks.IsDefaultOrEmpty)
+            {
+                // 正解データなし
+                this._store.PitchConcordanceRate = 0;
+                this._store.VowelConcordanceRate = 0;
+                this._store.VowelConcordanceRate2 = 0;
+                return;
+            }
+
+            var checkedCount = 0;
+            var pitchMatchedCount = 0;
+            var vowelMatchedCount = 0;
+            var vowelMatchedCount2 = 0;
+
+            foreach (var noteBlock in this._store.VoiceAnalysisResult.NoteBlocks)
+            {
+                var correctNoteBlock = BinarySearch(noteBlock);
+
+                if (correctNoteBlock != null)
+                {
+                    checkedCount++;
+
+                    // オクターブ差は考慮しない
+                    if (noteBlock.NoteNumber % 12 == correctNoteBlock.NoteNumber % 12)
+                        pitchMatchedCount++;
+
+                    if (noteBlock.VowelType == correctNoteBlock.VowelType)
+                    {
+                        vowelMatchedCount++;
+                        vowelMatchedCount2++;
+                    }
+                    else if ((noteBlock.VowelType == VowelType.U || noteBlock.VowelType == VowelType.N)
+                        && (correctNoteBlock.VowelType == VowelType.U || correctNoteBlock.VowelType == VowelType.N))
+                    {
+                        // 「う」と「ん」の区別なしでの結果
+                        vowelMatchedCount2++;
+                    }
+                }
+            }
+
+            if (checkedCount == 0)
+            {
+                // 分母が 0 になるので特別扱い
+                this._store.PitchConcordanceRate = 0;
+                this._store.VowelConcordanceRate = 0;
+                this._store.VowelConcordanceRate2 = 0;
+                return;
+            }
+
+            this._store.PitchConcordanceRate = 100.0 * pitchMatchedCount / checkedCount;
+            this._store.VowelConcordanceRate = 100.0 * vowelMatchedCount / checkedCount;
+            this._store.VowelConcordanceRate2 = 100.0 * vowelMatchedCount2 / checkedCount;
+
+            CorrectNoteBlockModel BinarySearch(NoteBlockModel noteBlock)
+            {
+                var targetPosition = noteBlock.Start + noteBlock.Span / 2.0;
+
+                var start = 0;
+                var end = correctNoteBlocks.Length;
+                while (start < end)
+                {
+                    var index = start + (end - start) / 2;
+                    var correctNoteBlock = correctNoteBlocks[index];
+
+                    if (targetPosition < correctNoteBlock.StartPositionInAnalysisUnits)
+                    {
+                        end = index;
+                    }
+                    else if (targetPosition > correctNoteBlock.StartPositionInAnalysisUnits + correctNoteBlock.LengthInAnalysisUnits)
+                    {
+                        start = index + 1;
+                    }
+                    else
+                    {
+                        return correctNoteBlock;
+                    }
+                }
+
+                return null;
+            }
+        }
+
+        public void CloseCorrectScore()
+        {
+            this._store.CorrectScoreFileName = null;
+            this._store.CorrectNoteBlocks = ImmutableArray<CorrectNoteBlockModel>.Empty;
         }
     }
 }

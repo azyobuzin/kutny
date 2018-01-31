@@ -300,26 +300,29 @@ namespace UtagoeGui.Models
 
             foreach (var noteBlock in this._store.VoiceAnalysisResult.NoteBlocks)
             {
-                var correctNoteBlock = BinarySearch(noteBlock);
-
-                if (correctNoteBlock != null)
+                for (var i = 0; i < noteBlock.Span; i++)
                 {
-                    checkedCount++;
+                    var correctNoteBlock = BinarySearch(noteBlock.Start + i + 0.5);
 
-                    // オクターブ差は考慮しない
-                    if (noteBlock.NoteNumber % 12 == correctNoteBlock.NoteNumber % 12)
-                        pitchMatchedCount++;
+                    if (correctNoteBlock != null) // 該当するノートがない場合は毒にも薬にもしない
+                    {
+                        checkedCount++;
 
-                    if (noteBlock.VowelType == correctNoteBlock.VowelType)
-                    {
-                        vowelMatchedCount++;
-                        vowelMatchedCount2++;
-                    }
-                    else if ((noteBlock.VowelType == VowelType.U || noteBlock.VowelType == VowelType.N)
-                        && (correctNoteBlock.VowelType == VowelType.U || correctNoteBlock.VowelType == VowelType.N))
-                    {
-                        // 「う」と「ん」の区別なしでの結果
-                        vowelMatchedCount2++;
+                        // オクターブ差は考慮しない
+                        if (noteBlock.NoteNumber % 12 == correctNoteBlock.NoteNumber % 12)
+                            pitchMatchedCount++;
+
+                        if (noteBlock.VowelType == correctNoteBlock.VowelType)
+                        {
+                            vowelMatchedCount++;
+                            vowelMatchedCount2++;
+                        }
+                        else if ((noteBlock.VowelType == VowelType.U || noteBlock.VowelType == VowelType.N)
+                            && (correctNoteBlock.VowelType == VowelType.U || correctNoteBlock.VowelType == VowelType.N))
+                        {
+                            // 「う」と「ん」の区別なしでの結果
+                            vowelMatchedCount2++;
+                        }
                     }
                 }
             }
@@ -337,10 +340,8 @@ namespace UtagoeGui.Models
             this._store.VowelConcordanceRate = 100.0 * vowelMatchedCount / checkedCount;
             this._store.VowelConcordanceRate2 = 100.0 * vowelMatchedCount2 / checkedCount;
 
-            CorrectNoteBlockModel BinarySearch(NoteBlockModel noteBlock)
+            CorrectNoteBlockModel BinarySearch(double targetPosition)
             {
-                var targetPosition = noteBlock.Start + noteBlock.Span / 2.0;
-
                 var start = 0;
                 var end = correctNoteBlocks.Length;
                 while (start < end)

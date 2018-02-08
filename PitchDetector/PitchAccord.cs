@@ -15,29 +15,29 @@ namespace PitchDetector
     {
         public static double? EstimateBasicFrequency(int sampleRate, ReadOnlySpan<float> samples)
         {
-            // SDF
+            // ACF
             // 1. zero pad
-            var sdf = new Complex[samples.Length * 2];
+            var acf = new Complex[samples.Length * 2];
             for (var i = 0; i < samples.Length; i++)
-                sdf[i] = samples[i];
+                acf[i] = samples[i];
 
             // 2. FFT
-            FourierTransform2.FFT(sdf, FourierTransform.Direction.Forward);
+            FourierTransform2.FFT(acf, FourierTransform.Direction.Forward);
 
             // 3. パワースペクトル
-            for (var i = 0; i < sdf.Length; i++)
+            for (var i = 0; i < acf.Length; i++)
             {
-                var x = sdf[i];
-                sdf[i] = x.Real * x.Real + x.Imaginary * x.Imaginary;
+                var x = acf[i];
+                acf[i] = x.Real * x.Real + x.Imaginary * x.Imaginary;
             }
 
             // 4. inverse FFT
-            FourierTransform2.FFT(sdf, FourierTransform.Direction.Backward);
+            FourierTransform2.FFT(acf, FourierTransform.Direction.Backward);
 
             // NSDF
             var nsdf = new double[samples.Length];
             var m = 0.0;
-            for (var i = 0; i < samples.Length; i++)
+            for (var i = samples.Length - 1; i >= 0; i--)
             {
                 var x = (double)samples[i];
                 m += x * x;
@@ -45,7 +45,7 @@ namespace PitchDetector
                 x = samples[inv];
                 m += x * x;
 
-                nsdf[inv] = 2.0 * sdf[inv].Real / m;
+                nsdf[i] = 2.0 * acf[i].Real / m;
             }
 
             //var nsdfSeries = new LineSeries();

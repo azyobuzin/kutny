@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Threading;
@@ -430,8 +431,119 @@ namespace PitchDetector
             );
         }
 
+        private static void Nsdf()
+        {
+            const int windowSize = 1024;
+            int rate;
+            var data = new float[windowSize];
+
+            // 2.5sのところから1024サンプル取得してくる
+            using (var reader = new WaveFileReader(Path.Combine(Utils.GetTrainingDataDirectory(), "あいうえお 2017-12-18 00-17-09.wav")))
+            {
+                var provider = reader.ToSampleProvider()
+                    .Skip(TimeSpan.FromSeconds(2.5))
+                    .ToMono();
+
+                rate = provider.WaveFormat.SampleRate;
+
+                for (var readSamples = 0; readSamples < data.Length;)
+                {
+                    var delta = provider.Read(data, readSamples, data.Length - readSamples);
+                    if (delta == 0) throw new EndOfStreamException();
+                    readSamples += delta;
+                }
+            }
+
+            using (var writer = new StreamWriter("samples.txt",false, new UTF8Encoding(false)))
+            {
+                for(var i = 0; i < data.Length; i++)
+                {
+                    writer.WriteLine("{0} {1}", i, data[i]);
+                }
+            }
+
+            float Acf(int t)
+            {
+                float result = 0f;
+                for (var j = 0; j < windowSize - t; j++)
+                    result += data[j] * data[j + t];
+                return result;
+            }
+
+            using (var writer = new StreamWriter("acf.txt", false, new UTF8Encoding(false)))
+            {
+                var acfSeries = new LineSeries();
+                for (var i = 0; i < windowSize; i++)
+                {
+                    var v = Acf(i);
+                    acfSeries.Points.Add(new DataPoint(i, v));
+                    writer.WriteLine("{0} {1}", i, v);
+                }
+                ShowPlot(new PlotModel()
+                {
+                    Title = "Autocorrelation Function",
+                    Series = { acfSeries }
+                });
+            }
+
+            float Sdf(int t)
+            {
+                float result = 0f;
+                for (var j = 0; j < windowSize - t; j++)
+                {
+                    var d = data[j] - data[j + t];
+                    result += d * d;
+                }
+                return result;
+            }
+
+            using (var writer = new StreamWriter("sdf.txt", false, new UTF8Encoding(false)))
+            {
+                var sdfSeries = new LineSeries();
+                for (var i = 0; i < windowSize; i++)
+                {
+                    var v = Sdf(i);
+                    sdfSeries.Points.Add(new DataPoint(i, v));
+                    writer.WriteLine("{0} {1}", i, v);
+                }
+                ShowPlot(new PlotModel()
+                {
+                    Title = "Square Difference Function",
+                    Series = { sdfSeries }
+                });
+            }
+
+            float M(int t)
+            {
+                var result = 0f;
+                for (var j = 0; j < windowSize - t; j++)
+                    result += data[j] * data[j] + data[j + t] * data[j + t];
+                return result;
+            }
+
+            using (var writer = new StreamWriter("nsdf.txt", false, new UTF8Encoding(false)))
+            {
+                var nsdfSeries = new LineSeries();
+                for (var i = 0; i < windowSize; i++)
+                {
+                    var v = 2 * Acf(i) / M(i);
+                    nsdfSeries.Points.Add(new DataPoint(i, v));
+                    writer.WriteLine("{0} {1}", i, v);
+                }
+                ShowPlot(new PlotModel()
+                {
+                    Title = "Normalized Square Difference Function",
+                    Series = { nsdfSeries }
+                });
+            }
+
+            BasicTest();
+        }
+
         public static void ShowPlot(PlotModel plot)
         {
+            if (s_dispatcher == null) return; // UtagoeGui から呼ばれたら厳しい
+
             s_dispatcher.InvokeAsync(() =>
             {
                 var window = new System.Windows.Window()

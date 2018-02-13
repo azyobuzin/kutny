@@ -11,6 +11,7 @@ namespace ToneSeriesMatching
         public ImmutableArray<UtauNote> Score { get; }
         private readonly Buffer<PitchUnit> _template;
         public int CurrentNoteIndex { get; private set; }
+        private int _viewCenterIndex;
 
         public CompoundToneSeriesMatcher(ImmutableArray<UtauNote> score, int templateWidth)
         {
@@ -28,10 +29,12 @@ namespace ToneSeriesMatching
             this._template.Push(unit);
 
             if (this.CurrentNoteIndex < this.Score.Length - 1 &&
-                Math.Abs(unit.NormalizedPitch - this.Score[this.CurrentNoteIndex + 1].NoteNumber) < 1.0)
+                PitchDifference(unit.NormalizedPitch, this.Score[this.CurrentNoteIndex + 1].NoteNumber) < 1.0)
             {
                 // 予想通り次の音が来たならショートカット
-                this.CurrentNoteIndex++;
+                var i = this.CurrentNoteIndex + 1;
+                this.CurrentNoteIndex = i;
+                this._viewCenterIndex = i;
             }
             else
             {
@@ -41,40 +44,108 @@ namespace ToneSeriesMatching
 
         private void Match()
         {
-            var (startInclusive, endExclusive) = this.CreateView(this.CurrentNoteIndex);
             var templateWidth = this._template.Count;
-            endExclusive -= templateWidth; // テンプレートの要素数分引いて、範囲をオーバーしないようにする
+            var (startInclusive, endExclusive) = this.CreateView(this._viewCenterIndex, templateWidth);
 
-            var matchCount = endExclusive - startInclusive;
-            var matchResult = new(int, double)[matchCount];
-            for (var i = 0; i < matchCount; i++)
+            const double diffThreshold = 1e-5;
+
+            var bestScore = double.NegativeInfinity;
+            var bestIndex = 0;
+            var bestMatchPositionScore = double.NegativeInfinity; // 新しいイベントほど重みが大きい
+
+            for (var i = startInclusive; i < endExclusive; i++)
             {
-                var scoreIndex = startInclusive + i;
+                var noteIndex = i + templateWidth - 1;
 
                 var score = 0.0;
+                var matchPositionScore = 0.0;
+
                 for (var j = 0; j < templateWidth; j++)
                 {
-                    var diff = Math.Abs(this._template[j].NormalizedPitch - this.Score[scoreIndex + j].NoteNumber);
-                    if (diff < 1.0)
-                    {
-                        // 差が 1 音以下なら、その差をスコアにする
-                        score += 1.0 - diff;
-                    }
+                    var s = DifferenceScore(this._template[j].NormalizedPitch, this.Score[i + j].NoteNumber);
+                    score += s;
+                    matchPositionScore += s * Math.Exp((j - templateWidth + 1) / 2.0);
                 }
 
-                matchResult[i] = (scoreIndex + templateWidth, score);
+                // スコアで比較
+                var scoreDiff = score - bestScore;
+                var isBest = scoreDiff > diffThreshold;
+
+                if (!isBest && Math.Abs(scoreDiff) <= diffThreshold)
+                {
+                    isBest = matchPositionScore - bestMatchPositionScore > diffThreshold // 新しいイベントがマッチしてるか
+                        || Math.Abs(noteIndex - this.CurrentNoteIndex) <= Math.Abs(bestIndex - this.CurrentNoteIndex); // 現在の認識位置に近いほう
+                }
+
+                if (isBest)
+                {
+                    bestScore = score;
+                    bestIndex = noteIndex;
+                    bestMatchPositionScore = matchPositionScore;
+                }
             }
 
-            throw new NotImplementedException();
-            // TODO: ソートする
-            // 最大だけ分かればいいから、配列にしなくてよかったかも
-            // あと、新しい入力がマッチするほどいいので、それ用の指標も
+            if (bestIndex != this.CurrentNoteIndex)
+            {
+                this.CurrentNoteIndex = bestIndex;
+                this._viewCenterIndex = bestIndex;
+            }
+            else
+            {
+                // 移動していないので単イベントマッチングへ
+                SingleEventMatch();
+            }
+        }
+
+        private void SingleEventMatch()
+        {
+            var pitch = this._template[this._template.Count - 1].NormalizedPitch;
+            int index;
+
+            for (var i = 1; ; i++)
+            {
+                index = this.CurrentNoteIndex + i;
+                var cond1 = index < this.Score.Length;
+                if (cond1)
+                {
+                    if (PitchDifference(pitch, this.Score[index].NoteNumber) < 1.0)
+                        break;
+                }
+
+                index = this.CurrentNoteIndex - i;
+                if (index >= 0)
+                {
+                    if (PitchDifference(pitch, this.Score[index].NoteNumber) < 1.0)
+                        break;
+                }
+                else if (!cond1)
+                {
+                    return; // 全範囲を検索しつくしてしまった
+                }
+            }
+
+            this.CurrentNoteIndex = index;
+            // 単イベントマッチングではビューの中心を更新しない
+        }
+
+        private static double PitchDifference(double normalizedPitch, int noteNumber)
+        {
+            return Math.Min(
+                Math.Abs(noteNumber - normalizedPitch),
+                Math.Abs(noteNumber + 12 - normalizedPitch)
+            );
+        }
+
+        private static double DifferenceScore(double normalizedPitch, int noteNumber)
+        {
+            // 差が大きいほど値は小さく、差がなければ 1
+            return Math.Exp(-PitchDifference(normalizedPitch, noteNumber));
         }
 
         /// <summary>
         /// 探索範囲を決定する
         /// </summary>
-        private (int, int) CreateView(int centerIndex)
+        private (int, int) CreateView(int centerIndex, int templateWidth)
         {
             // 現在演奏中の小節の前後 2 小節 → とりあえず 1920 * 3 戻ってみる
             int start1, end1;
@@ -110,9 +181,20 @@ namespace ToneSeriesMatching
             var start2 = Math.Max(centerIndex - this.MaximumTemplateWidth * 2, 0);
             var end2 = Math.Min(centerIndex + 1 + this.MaximumTemplateWidth * 2, this.Score.Length);
 
-            return end1 - start1 >= end2 - start2
-                ? (start1, end1)
-                : (start2, end2);
+            int start, end;
+            if (end1 - start1 >= end2 - start2)
+            {
+                start = start1;
+                end = end1;
+            }
+            else
+            {
+                start = start2;
+                end = end2;
+            }
+
+            // テンプレート幅分を考慮してループ場所を考える
+            return (Math.Max(0, start - templateWidth + 1), end - templateWidth);
         }
     }
 }

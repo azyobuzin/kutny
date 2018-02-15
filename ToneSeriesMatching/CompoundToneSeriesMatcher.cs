@@ -28,6 +28,8 @@ namespace ToneSeriesMatching
         {
             this._template.Push(unit);
 
+            if (this._template.Count <= 1) return;
+
             if (this.CurrentNoteIndex < this.Score.Length - 1 &&
                 PitchDifference(unit.NormalizedPitch, this.Score[this.CurrentNoteIndex + 1].NoteNumber) < 1.0)
             {
@@ -132,7 +134,7 @@ namespace ToneSeriesMatching
         {
             return Math.Min(
                 Math.Abs(noteNumber - normalizedPitch),
-                Math.Abs(noteNumber + 12 - normalizedPitch)
+                noteNumber + 12 - normalizedPitch
             );
         }
 

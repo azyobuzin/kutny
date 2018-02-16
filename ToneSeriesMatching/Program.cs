@@ -23,7 +23,7 @@ namespace ToneSeriesMatching
             var plots = new List<(int x, int y)>();
 
             const string audioFileName = @"C:\Users\azyob\Documents\Visual Studio 2017\Projects\PitchDetector\TrainingData\校歌 2018-01-17 15-10-46.wav";
-            foreach (var pitchUnit in FilterPitchUnits(LoadAudioFile(audioFileName)))
+            foreach (var pitchUnit in FilterPitchUnits(LoadAudioFile(audioFileName, true)))
             {
                 var prev = matcher.CurrentNoteIndex;
                 matcher.InputPitch(pitchUnit);
@@ -32,7 +32,7 @@ namespace ToneSeriesMatching
                 if (current != prev)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("{0}: 位置 {1} -> {2} (音高 {3})", pitchUnit.UnitIndex, prev, current, matcher.Score[current].NoteNumber);
+                    Console.WriteLine("{0}: 位置 {1} -> {2} ({3})", pitchUnit.UnitIndex, prev, current, NoteName(matcher.Score[current].NoteNumber));
                     Console.ResetColor();
 
                     plots.Add((pitchUnit.UnitIndex, current));
@@ -74,25 +74,36 @@ namespace ToneSeriesMatching
             }
         }
 
-        private static IEnumerable<PitchUnit> LoadAudioFile(string fileName)
+        private static IEnumerable<PitchUnit> LoadAudioFile(string fileName, bool play)
         {
-            const int analysisUnit = 4096;
-            const int pitchWindowSize = 1024;
-
-            using (var reader = new AudioFileReader(fileName))
+            using (var playerReader = new AudioFileReader(fileName))
+            using (var player = new WaveOutEvent())
             {
-                var provider = reader.ToSampleProvider().ToMono();
-                var sampleRate = provider.WaveFormat.SampleRate;
-                var samples = new float[analysisUnit];
-
-                using (var form = new System.Windows.Forms.Form())
-                using (var player = new AudioOutputDevice(form.Handle, sampleRate, 1))
+                if (play)
                 {
-                    var waitEvent = new AutoResetEvent(false);
-                    player.Stopped += (_, __) => waitEvent.Set();
+                    player.Init(playerReader);
+                    player.Play();
+                }
+
+                var startTime = Environment.TickCount;
+
+                const int analysisUnit = 4096;
+                const int pitchWindowSize = 1024;
+
+                using (var reader = new AudioFileReader(fileName))
+                {
+                    var provider = reader.ToSampleProvider().ToMono();
+                    var sampleRate = provider.WaveFormat.SampleRate;
+                    var samples = new float[analysisUnit];
 
                     for (var unitIndex = 0; ; unitIndex++)
                     {
+                        if (play)
+                        {
+                            var waitTime = (int)(startTime + unitIndex * analysisUnit * 1000.0 / sampleRate) - Environment.TickCount;
+                            if (waitTime > 0) Thread.Sleep(waitTime);
+                        }
+
                         for (var readSamples = 0; readSamples < samples.Length;)
                         {
                             var count = provider.Read(samples, readSamples, samples.Length - readSamples);
@@ -127,9 +138,7 @@ namespace ToneSeriesMatching
                         var normalizedPitch = NormalizePitch(f0);
                         if (normalizedPitch.HasValue)
                         {
-                            //player.Play(samples);
                             yield return new PitchUnit(unitIndex, rms, normalizedPitch.Value);
-                            //waitEvent.WaitOne();
                         }
                     }
                 }
@@ -176,7 +185,7 @@ namespace ToneSeriesMatching
                             {
                                 if (++i == checkCount)
                                 {
-                                    Console.WriteLine("{0}: NoSound -> InSound", current.UnitIndex);
+                                    Console.WriteLine("{0}: NoSound -> InSound ({1})", current.UnitIndex, NoteName((int)Math.Round(current.NormalizedPitch)));
                                     prev = current;
                                     yield return prev;
                                     goto InSound;
@@ -216,7 +225,6 @@ namespace ToneSeriesMatching
                                 {
                                     Console.WriteLine("{0}: InSound -> NoSound", current.UnitIndex);
                                     prev = current;
-                                    yield return prev;
                                     goto NoSound;
                                 }
                             }
@@ -229,12 +237,17 @@ namespace ToneSeriesMatching
                                 Math.Abs(prev.NormalizedPitch - current.NormalizedPitch),
                                 prev.NormalizedPitch + 12 - current.NormalizedPitch
                             );
-                            var pitchChanged = pitchDifference > pitchThreshold;
+                            var roundedPrevPitch = (int)Math.Round(prev.NormalizedPitch);
+                            if (roundedPrevPitch == 12) roundedPrevPitch = 0;
+                            var roundedCurrentPitch = (int)Math.Round(current.NormalizedPitch);
+                            if (roundedCurrentPitch == 12) roundedCurrentPitch = 0;
+                            var pitchChanged = pitchDifference > pitchThreshold
+                                && roundedPrevPitch != roundedCurrentPitch; // 四捨五入したときの音高が変化していることをチェック
                             if (pitchChanged)
                             {
                                 if (++pitchCount == checkCount)
                                 {
-                                    Console.WriteLine("{0}: 音高 {1} -> {2}", current.UnitIndex, Math.Round(prev.NormalizedPitch), Math.Round(current.NormalizedPitch));
+                                    Console.WriteLine("{0}: 音高 {1} -> {2}", current.UnitIndex, NoteName((int)Math.Round(prev.NormalizedPitch)), NoteName((int)Math.Round(current.NormalizedPitch)));
                                     prev = current;
                                     yield return prev;
                                     break;
@@ -255,5 +268,8 @@ namespace ToneSeriesMatching
                 }
             }
         }
+
+        private static readonly string[] s_noteNames = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", "C" };
+        private static string NoteName(int num) => s_noteNames[num];
     }
 }

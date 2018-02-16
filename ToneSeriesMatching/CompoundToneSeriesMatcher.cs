@@ -49,41 +49,46 @@ namespace ToneSeriesMatching
             var templateWidth = this._template.Count;
             var (startInclusive, endExclusive) = this.CreateView(this._viewCenterIndex, templateWidth);
 
-            const double diffThreshold = 1e-5;
+            const double diffThreshold = 0.5;
 
             var bestScore = double.NegativeInfinity;
             var bestIndex = 0;
-            var bestMatchPositionScore = double.NegativeInfinity; // 新しいイベントほど重みが大きい
+            //var bestMatchPositionScore = double.NegativeInfinity; // 新しいイベントほど重みが大きい
+            //var bestLatestEventMatched = false;
 
             for (var i = startInclusive; i < endExclusive; i++)
             {
                 var noteIndex = i + templateWidth - 1;
 
                 var score = 0.0;
-                var matchPositionScore = 0.0;
+                //var matchPositionScore = 0.0;
 
                 for (var j = 0; j < templateWidth; j++)
                 {
                     var s = DifferenceScore(this._template[j].NormalizedPitch, this.Score[i + j].NoteNumber);
                     score += s;
-                    matchPositionScore += s * Math.Exp((j - templateWidth + 1) / 2.0);
+                    //matchPositionScore += s * Math.Exp((j - templateWidth + 1) / 2.0);
                 }
+
+                //var latestEventMatched = PitchDifference(this._template[templateWidth - 1].NormalizedPitch, this.Score[noteIndex].NoteNumber) < 0.6;
 
                 // スコアで比較
                 var scoreDiff = score - bestScore;
                 var isBest = scoreDiff > diffThreshold;
 
-                if (!isBest && Math.Abs(scoreDiff) <= diffThreshold)
+                if (!isBest && scoreDiff >= -diffThreshold)
                 {
-                    isBest = matchPositionScore - bestMatchPositionScore > diffThreshold // 新しいイベントがマッチしてるか
-                        || Math.Abs(noteIndex - this.CurrentNoteIndex) <= Math.Abs(bestIndex - this.CurrentNoteIndex); // 現在の認識位置に近いほう
+                    isBest = //matchPositionScore > bestMatchPositionScore // 新しいイベントがマッチしてるか
+                        //(latestEventMatched && !bestLatestEventMatched)
+                        /*||*/ Math.Abs(noteIndex - this.CurrentNoteIndex) <= Math.Abs(bestIndex - this.CurrentNoteIndex); // 現在の認識位置に近いほう
                 }
 
                 if (isBest)
                 {
                     bestScore = score;
                     bestIndex = noteIndex;
-                    bestMatchPositionScore = matchPositionScore;
+                    //bestMatchPositionScore = matchPositionScore;
+                    //bestLatestEventMatched = latestEventMatched;
                 }
             }
 
@@ -149,10 +154,10 @@ namespace ToneSeriesMatching
         /// </summary>
         private (int, int) CreateView(int centerIndex, int templateWidth)
         {
-            // 現在演奏中の小節の前後 2 小節 → とりあえず 1920 * 3 戻ってみる
+            // 現在演奏中の小節の前後 2 小節 → とりあえず 1920 * 2.5 戻ってみる
             int start1, end1;
             {
-                const int searchWidth = 1920 * 3;
+                const int searchWidth = 4800;
 
                 if (centerIndex == 0)
                 {

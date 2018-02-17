@@ -23,6 +23,8 @@ namespace HmmMatching
 
         public HmmState<TState, TObservation> AddState(TState value, Func<TObservation, double> emissionProbability)
         {
+            if (emissionProbability == null) throw new ArgumentNullException(nameof(emissionProbability));
+
             var state = new HmmState<TState, TObservation>(this, this._states.Count, value, emissionProbability);
             this._states.Add(state);
             return state;
@@ -145,7 +147,7 @@ namespace HmmMatching
                 }
             }
 
-            // 日本語 Wikipedia では最初からリスト作ってたけど、どっちがいいのか
+            // 日本語 Wikipedia では最初からリスト作ってたけど、どっちがいいのか（Single Linked List がいい気がするが）
             var result = new HmmState<TState, TObservation>[observationCount];
             result[observationCount - 1] = this._states[finalPArgmax];
             for (var i = observationCount - 2; i >= 0; i--)

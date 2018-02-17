@@ -1,5 +1,8 @@
-﻿namespace ToneSeriesMatching
+﻿using System.Runtime.InteropServices;
+
+namespace ToneSeriesMatching
 {
+    [StructLayout(LayoutKind.Auto)]
     public struct PitchUnit
     {
         public int UnitIndex { get; }

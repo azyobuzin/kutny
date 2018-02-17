@@ -55,7 +55,7 @@ namespace ToneSeriesMatching
                     if (reader.SectionName == "#TRACKEND")
                         break;
 
-                    if (Regex.IsMatch(reader.SectionName, "#[0-9]+"))
+                    if (Regex.IsMatch(reader.SectionName, "^#[0-9]+$"))
                     {
                         var lyric = reader.GetField("Lyric");
                         var length = int.Parse(reader.GetField("Length"), CultureInfo.InvariantCulture);

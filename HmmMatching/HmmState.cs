@@ -19,6 +19,20 @@ namespace HmmMatching
 
         public double EmissionProbability(TObservation emission) => this._emissionProbability(emission);
 
-        // TODO: エッジもここに持つ？
+        public void AddOutgoingEdge(HmmState<TState, TObservation> to, double probability)
+        {
+            if (to == null) throw new ArgumentNullException(nameof(to));
+            if (to.Model != this.Model) throw new ArgumentException();
+
+            this.Model.SetTransitionProbability(this.Index, to.Index, probability);
+        }
+
+        public void AddIncommingEdge(HmmState<TState, TObservation> from, double probability)
+        {
+            if (from == null) throw new ArgumentNullException(nameof(from));
+            if (from.Model != this.Model) throw new ArgumentException();
+
+            this.Model.SetTransitionProbability(from.Index, this.Index, probability);
+        }
     }
 }

@@ -6,8 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Accord.Controls;
-using Accord.Audio;
-using Accord.DirectSound;
 using NAudio.Wave;
 using System.Threading;
 

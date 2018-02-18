@@ -2,11 +2,11 @@
 {
     public struct PitchHmmState
     {
-        public int Position { get; }
+        public UtauNote ReportingNote { get; }
 
-        public PitchHmmState(int position)
+        public PitchHmmState(UtauNote reportingNote)
         {
-            this.Position = position;
+            this.ReportingNote = reportingNote;
         }
     }
 }

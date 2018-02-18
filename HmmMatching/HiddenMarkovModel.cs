@@ -107,8 +107,8 @@ namespace HmmMatching
                 {
                     var toStateIndex = toState.Index;
 
-                    var pMax = 0.0;
-                    var pArgmax = 0;
+                    var maxP = 0.0;
+                    var argmaxP = 0;
 
                     foreach (var fromState in this._states)
                     {
@@ -118,15 +118,15 @@ namespace HmmMatching
                         if (p <= 0.0) continue;
                         p *= toState.EmissionProbability(observation);
 
-                        if (p > pMax)
+                        if (p > maxP)
                         {
-                            pMax = p;
-                            pArgmax = fromStateIndex;
+                            maxP = p;
+                            argmaxP = fromStateIndex;
                         }
                     }
 
-                    newProbabilities[toStateIndex] = pMax;
-                    mlStates[i, toStateIndex] = pArgmax;
+                    newProbabilities[toStateIndex] = maxP;
+                    mlStates[i, toStateIndex] = argmaxP;
                 }
 
                 // 配列を入れ替えて次に備える
@@ -135,21 +135,21 @@ namespace HmmMatching
                 newProbabilities = probabilities;
             }
 
-            var finalPMax = 0.0;
-            var finalPArgmax = 0;
+            var finalMaxP = 0.0;
+            var finalArgmaxP = 0;
             foreach (var state in this._states)
             {
                 var i = state.Index;
-                if (probabilities[i] > finalPMax)
+                if (probabilities[i] > finalMaxP)
                 {
-                    finalPMax = probabilities[i];
-                    finalPArgmax = i;
+                    finalMaxP = probabilities[i];
+                    finalArgmaxP = i;
                 }
             }
 
             // 日本語 Wikipedia では最初からリスト作ってたけど、どっちがいいのか（Single Linked List がいい気がするが）
             var result = new HmmState<TState, TObservation>[observationCount];
-            result[observationCount - 1] = this._states[finalPArgmax];
+            result[observationCount - 1] = this._states[finalArgmaxP];
             for (var i = observationCount - 2; i >= 0; i--)
                 result[i] = this._states[mlStates[i + 1, result[i + 1].Index]];
 

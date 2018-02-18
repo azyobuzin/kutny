@@ -30,7 +30,8 @@ namespace ToneSeriesMatching
                 if (current != prev)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("{0}: 位置 {1} -> {2} ({3})", pitchUnit.UnitIndex, prev, current, NoteName(matcher.Score[current].NoteNumber));
+                    var note = matcher.Score[current];
+                    Console.WriteLine("{0}: 位置 {1} -> {2} ({3}, {4})", pitchUnit.UnitIndex, prev, current, NoteName(note.NoteNumber), note.Lyric);
                     Console.ResetColor();
 
                     plots.Add((pitchUnit.UnitIndex, current));
@@ -63,7 +64,7 @@ namespace ToneSeriesMatching
                         if (lyric != "R") // R は休符
                         {
                             var noteNum = int.Parse(reader.GetField("NoteNum"), CultureInfo.InvariantCulture);
-                            yield return new UtauNote(position, noteNum % 12);
+                            yield return new UtauNote(position, noteNum % 12, lyric);
                         }
 
                         position += length;
@@ -164,7 +165,7 @@ namespace ToneSeriesMatching
                 var prev = enumerator.Current;
 
                 // 状態: 音声なし
-                NoSound:
+                SoundOff:
                 {
                     const double rmsThreshold = 2.0; // 音量が 2 倍になったら音声ありと判断
                     const int checkCount = 2; // 2 回 rmsThreshold を満たしていたら音声ありと判断
@@ -183,10 +184,10 @@ namespace ToneSeriesMatching
                             {
                                 if (++i == checkCount)
                                 {
-                                    Console.WriteLine("{0}: NoSound -> InSound ({1})", current.UnitIndex, NoteName((int)Math.Round(current.NormalizedPitch)));
+                                    Console.WriteLine("{0}: SoundOff -> SoundOn ({1})", current.UnitIndex, NoteName((int)Math.Round(current.NormalizedPitch)));
                                     prev = current;
                                     yield return prev;
-                                    goto InSound;
+                                    goto SoundOn;
                                 }
                             }
                             else
@@ -200,7 +201,7 @@ namespace ToneSeriesMatching
                 }
 
                 // 状態: 音声あり
-                InSound:
+                SoundOn:
                 {
                     const double rmsThreshold = 0.5; // 音量が半分になったら音声なしと判断
                     const double pitchThreshold = 0.8; // 音高が 0.8 変化したら、音高が変わったと判断
@@ -221,9 +222,9 @@ namespace ToneSeriesMatching
                             {
                                 if (++rmsCount == checkCount)
                                 {
-                                    Console.WriteLine("{0}: InSound -> NoSound", current.UnitIndex);
+                                    Console.WriteLine("{0}: SoundOn -> SoundOff", current.UnitIndex);
                                     prev = current;
-                                    goto NoSound;
+                                    goto SoundOff;
                                 }
                             }
                             else

@@ -19,13 +19,13 @@ namespace HmmMatching
 
         public double EmissionProbability(TObservation emission) => this._emissionProbability(emission);
 
-        public void AddOutgoingEdge(HmmState<TState, TObservation> to, double probability)
-        {
-            if (to == null) throw new ArgumentNullException(nameof(to));
-            if (to.Model != this.Model) throw new ArgumentException();
+        //public void AddOutgoingEdge(HmmState<TState, TObservation> to, double probability)
+        //{
+        //    if (to == null) throw new ArgumentNullException(nameof(to));
+        //    if (to.Model != this.Model) throw new ArgumentException();
 
-            this.Model.SetTransitionProbability(this.Index, to.Index, probability);
-        }
+        //    this.Model.SetTransitionProbability(this.Index, to.Index, probability);
+        //}
 
         public void AddIncommingEdge(HmmState<TState, TObservation> from, double probability)
         {

@@ -18,10 +18,13 @@ namespace ToneSeriesMatching
         /// </summary>
         public int NoteNumber { get; }
 
-        public UtauNote(int position, int noteNumber)
+        public string Lyric { get; }
+
+        public UtauNote(int position, int noteNumber, string lyric)
         {
             this.Position = position;
             this.NoteNumber = noteNumber;
+            this.Lyric = lyric;
         }
     }
 }

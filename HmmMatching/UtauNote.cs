@@ -1,10 +1,9 @@
-﻿using System.Runtime.InteropServices;
-
-namespace HmmMatching
+﻿namespace HmmMatching
 {
-    [StructLayout(LayoutKind.Auto)]
-    public struct UtauNote
+    public class UtauNote
     {
+        public int Index { get; }
+
         /// <summary>
         /// 開始位置（4分音符 480 として計算）
         /// </summary>
@@ -20,8 +19,9 @@ namespace HmmMatching
         /// </summary>
         public int NoteNumber { get; }
 
-        public UtauNote(int position, int length, int noteNumber)
+        public UtauNote(int index, int position, int length, int noteNumber)
         {
+            this.Index = index;
             this.Position = position;
             this.Length = length;
             this.NoteNumber = noteNumber;

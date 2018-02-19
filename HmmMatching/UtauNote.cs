@@ -19,12 +19,15 @@
         /// </summary>
         public int NoteNumber { get; }
 
-        public UtauNote(int index, int position, int length, int noteNumber)
+        public string Lyric { get; }
+
+        public UtauNote(int index, int position, int length, int noteNumber, string lyric)
         {
             this.Index = index;
             this.Position = position;
             this.Length = length;
             this.NoteNumber = noteNumber;
+            this.Lyric = lyric;
         }
 
         public bool IsRestNote => this.NoteNumber < 0;

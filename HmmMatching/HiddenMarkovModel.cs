@@ -155,5 +155,21 @@ namespace HmmMatching
 
             return result;
         }
+
+        /// <summary>
+        /// 遷移確率が合計で 1 になっているかを確認
+        /// </summary>
+        public void VerifyTransitionProbabilities()
+        {
+            for (var i = 0; i < this._states.Count; i++)
+            {
+                var total = 0.0;
+                for (var j = 0; j < this._states.Count; j++)
+                    total += this.GetTransitionProbability(i, j);
+
+                if (total < 0.0 || (total > 0.0 && Math.Abs(1.0 - total) > 1e-5))
+                    throw new Exception();
+            }
+        }
     }
 }

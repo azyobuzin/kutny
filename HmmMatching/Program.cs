@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -17,6 +18,12 @@ namespace HmmMatching
     {
         public static void Main(string[] args)
         {
+            const string scoreFileName = @"C:\Users\azyob\Documents\Visual Studio 2017\Projects\PitchDetector\TrainingData\東京電機大学校歌.ust";
+            var model = CreateHmm(scoreFileName);
+            using (var sw = new StreamWriter("hmm.js"))
+                WriteVisDataTo(model, sw);
+            using (var sw = new StreamWriter("hmm.dot"))
+                WriteDotTo(model, sw);
         }
 
         private static IEnumerable<UtauNote> LoadUtauScript(string fileName)
@@ -42,7 +49,7 @@ namespace HmmMatching
                             ? -1 // R は休符
                             : int.Parse(reader.GetField("NoteNum"), CultureInfo.InvariantCulture);
 
-                        yield return new UtauNote(index, position, length, noteNum);
+                        yield return new UtauNote(index, position, length, noteNum, lyric);
 
                         index++;
                         position += length;
@@ -54,12 +61,15 @@ namespace HmmMatching
         private static HiddenMarkovModel<PitchHmmState, PitchHmmEmission> CreateHmm(string fileName)
         {
             var utauNotes = LoadUtauScript(fileName).ToArray();
+
+            var stopwatch = Stopwatch.StartNew();
+
             var model = new HiddenMarkovModel<PitchHmmState, PitchHmmEmission>();
             var states = utauNotes.Where(x => !x.IsRestNote)
-                .Select(x => model.AddState(new PitchHmmState(x), NoteProbability(x)))
+                .Select(x => model.AddState(new PitchHmmState($@"{x.Index}\n{NoteName(x.NoteNumber % 12)} {x.Lyric}", x), NoteProbability(x)))
                 .ToArray();
 
-            var startState = model.AddState(new PitchHmmState(null), NoSoundStateEmissionProbability);
+            var startState = model.AddState(new PitchHmmState("スタート", null), NoSoundStateEmissionProbability);
 
             // startState の接続先
             {
@@ -70,7 +80,7 @@ namespace HmmMatching
             }
 
             // 順番に接続
-            for (var i = 0; i < states.Length; i++)
+            for (var i = 0; i < states.Length - 1; i++)
             {
                 var state = states[i];
                 var note = state.Value.ReportingNote;
@@ -121,13 +131,15 @@ namespace HmmMatching
                             var totalLength = midStates.Sum(x => x.Value.ReportingNote.Length);
                             foreach (var midState in midStates)
                             {
+                                var noteRate = (1.0 - nextPitchRate) * ((double)midState.Value.ReportingNote.Length / totalLength);
+
                                 // 前の音符の長さ次第で無音を経由する確率が決まる
                                 var prevNote = utauNotes[midState.Value.ReportingNote.Index - 1];
                                 var throughNoSoundProbability = ProbabilityOfNoSoundAfter(prevNote);
 
-                                skipProbabilitiesFromNoSound.Add((midState, throughNoSoundProbability * (1.0 - nextPitchRate) * skipProbability));
+                                skipProbabilitiesFromNoSound.Add((midState, throughNoSoundProbability * noteRate * skipProbability));
 
-                                var p = (1.0 - throughNoSoundProbability) * (1.0 - nextPitchRate) * skipProbability;
+                                var p = (1.0 - throughNoSoundProbability) * noteRate * skipProbability;
                                 midState.AddIncommingEdge(state, p);
                                 pNext -= p;
                             }
@@ -190,7 +202,7 @@ namespace HmmMatching
                     var total = startProbablitiy + firstNoteProbability + firstNoteInMeasureProbability + firstNoteInPreviousMeasureProbability + nextThroughNoSoundProbability
                         + skipProbabilitiesFromNoSound.Sum(x => x.Item2);
 
-                    var noSoundState = model.AddState(new PitchHmmState(note), NoSoundStateEmissionProbability);
+                    var noSoundState = model.AddState(new PitchHmmState($@"{note.Index}\n無", note), NoSoundStateEmissionProbability);
                     noSoundState.AddIncommingEdge(state, total);
                     pNext -= total;
 
@@ -198,7 +210,7 @@ namespace HmmMatching
                     const double noSoundSelfLoopProbability = 0.3; // 無音状態をループする確率（雑音に反応してしまったり）
                     noSoundState.AddIncommingEdge(noSoundState, noSoundSelfLoopProbability);
 
-                    var mul = total / (1.0 - noSoundSelfLoopProbability);
+                    var mul = (1.0 - noSoundSelfLoopProbability) / total;
                     startState.AddIncommingEdge(noSoundState, startProbablitiy * mul);
                     states[0].AddIncommingEdge(noSoundState, firstNoteProbability * mul);
 
@@ -212,14 +224,22 @@ namespace HmmMatching
                         states[i + 1].AddIncommingEdge(noSoundState, nextThroughNoSoundProbability * mul);
 
                     foreach (var (s, p) in skipProbabilitiesFromNoSound)
-                        s.AddIncommingEdge(noSoundState, p);
+                        s.AddIncommingEdge(noSoundState, p * mul);
                 }
+
+                // 次につなぐ
+                states[i + 1].AddIncommingEdge(state, pNext);
             }
 
             // 最後の状態の接続
             // ****************************************
             // TODO
             // ****************************************
+
+            stopwatch.Stop();
+            Console.WriteLine($"HMM生成: {stopwatch.ElapsedMilliseconds}ms");
+
+            //model.VerifyTransitionProbabilities();
 
             return model;
 
@@ -238,12 +258,12 @@ namespace HmmMatching
             // ノートが長いほど、そのあとは休みがち
             const int minLength = 480;
             const double minProbability = 0.05;
-            const double maxProbability = 0.3;
+            const double maxProbability = 0.2;
 
             // 短いときはほとんど休まない
             if (prevNote.Length <= minLength) return minProbability;
 
-            // 長いほど確率が上がり、全音符なら 0.3
+            // 長いほど確率が上がり、全音符なら 0.2
             return Math.Min(
                 minProbability + (prevNote.Length - minLength) * ((maxProbability - minProbability) / (1920 - minLength)),
                 maxProbability
@@ -257,10 +277,10 @@ namespace HmmMatching
         {
             if (!restNote.IsRestNote) throw new ArgumentException();
 
-            // 長さ 720 程度で 0.7 に到達するくらいの確率
+            // 長さ 720 程度で 0.6 に到達するくらいの確率
             const int maxLength = 720;
-            const double minProbability = 0.3;
-            const double maxProbability = 0.7;
+            const double minProbability = 0.2;
+            const double maxProbability = 0.6;
             return Math.Min(
                 minProbability + ((maxProbability - minProbability) / maxLength) * restNote.Length,
                 maxProbability
@@ -298,6 +318,88 @@ namespace HmmMatching
         private static double NormalDistribution(double mean, double stdDev, double x)
         {
             return Normal.Function((x - mean) / stdDev);
+        }
+
+        private static readonly string[] s_noteNames = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", "C" };
+        private static string NoteName(int num) => s_noteNames[num];
+
+        private static void WriteDotTo(HiddenMarkovModel<PitchHmmState, PitchHmmEmission> model, TextWriter writer)
+        {
+            writer.WriteLine("digraph {");
+
+            foreach (var state in model.States)
+            {
+                var label = state.Value.Label;
+                writer.WriteLine("    {0} [label=\"{1}\", fontname=Meiryo]", state.Index, label);
+            }
+
+            writer.WriteLine("    { rank=same; " + string.Join("; ", model.States.Where(x => x.Value.Label.IndexOf('無') < 0).Select(x => x.Index)) + " }");
+
+            var stateCount = model.States.Count;
+            for (var from = 0; from < stateCount; from++)
+            {
+                for (var to = 0; to < stateCount; to++)
+                {
+                    var p = model.GetTransitionProbability(from, to);
+                    if (p != 0.0)
+                    {
+                        writer.WriteLine(
+                            "    {0} -> {1} [label=\"{2}\"]",
+                            model.States[from].Index,
+                            model.States[to].Index,
+                            p
+                        );
+                    }
+                }
+            }
+
+            writer.WriteLine("}");
+        }
+
+        private static void WriteVisDataTo(HiddenMarkovModel<PitchHmmState, PitchHmmEmission> model, TextWriter writer)
+        {
+            writer.WriteLine("var data = {");
+            writer.WriteLine("    nodes: new vis.DataSet([");
+
+            foreach (var state in model.States)
+            {
+                var label = state.Value.Label;
+                var group = label == "スタート" ? "スタート"
+                    : label.Contains("無") ? "無"
+                    : "音符";
+                writer.WriteLine(
+                    "        {{ id: {0}, label: '{1}', group: '{2}', level: {3}, x: {4} }},",
+                    state.Index,
+                    label,
+                    group,
+                    group == "スタート" ? 0 : group == "無" ? 2 : 1,
+                    (state.Value.ReportingNote?.Index + 1) ?? 0
+                );
+            }
+
+            writer.WriteLine("    ]),");
+            writer.WriteLine("    edges: new vis.DataSet([");
+
+            var stateCount = model.States.Count;
+            for (var from = 0; from < stateCount; from++)
+            {
+                for (var to = 0; to < stateCount; to++)
+                {
+                    var p = model.GetTransitionProbability(from, to);
+                    if (p != 0.0)
+                    {
+                        writer.WriteLine(
+                            "        {{ from: {0}, to: {1}, arrows: 'to', label: '{2}' }},",
+                            model.States[from].Index,
+                            model.States[to].Index,
+                            p
+                        );
+                    }
+                }
+            }
+
+            writer.WriteLine("    ])");
+            writer.WriteLine("};");
         }
     }
 }

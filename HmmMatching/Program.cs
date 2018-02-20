@@ -20,10 +20,12 @@ namespace HmmMatching
         {
             const string scoreFileName = @"C:\Users\azyob\Documents\Visual Studio 2017\Projects\PitchDetector\TrainingData\東京電機大学校歌.ust";
             var model = CreateHmm(scoreFileName);
-            using (var sw = new StreamWriter("hmm.js"))
-                WriteVisDataTo(model, sw);
-            using (var sw = new StreamWriter("hmm.dot"))
-                WriteDotTo(model, sw);
+
+            //using (var sw = new StreamWriter("hmm.js"))
+            //    WriteVisDataTo(model, sw);
+            //using (var sw = new StreamWriter("hmm.dot"))
+            //    WriteDotTo(model, sw);
+            // TODO: 全部のグラフを出力しても見えないので、1つの状態（と無音状態）からの行先を表す画像を出力するべきか
         }
 
         private static IEnumerable<UtauNote> LoadUtauScript(string fileName)
@@ -69,6 +71,10 @@ namespace HmmMatching
                 .Select(x => model.AddState(new PitchHmmState($@"{x.Index}\n{NoteName(x.NoteNumber % 12)} {x.Lyric}", x), NoteProbability(x)))
                 .ToArray();
 
+            // 👇👇👇👇👇👇👇👇👇👇👇
+            // TODO: リファクタリング
+            // 👆👆👆👆👆👆👆👆👆👆👆
+
             var startState = model.AddState(new PitchHmmState("スタート", null), NoSoundStateEmissionProbability);
 
             // startState の接続先
@@ -79,6 +85,9 @@ namespace HmmMatching
                 states[0].AddIncommingEdge(startState, 0.4);
             }
 
+            const double selfLoopProbability = 0.05;
+            var skipProbabilitiesFromNoSound = new List<(Node, double)>();
+
             // 順番に接続
             for (var i = 0; i < states.Length - 1; i++)
             {
@@ -87,13 +96,13 @@ namespace HmmMatching
                 var pNext = 1.0;
 
                 // 自己ループの確率（音程変化の判定が過剰に反応してしまった場合）
-                const double selfLoopProbability = 0.05;
                 state.AddIncommingEdge(state, selfLoopProbability);
                 pNext -= selfLoopProbability;
 
                 // 音を飛ばす確率
-                var skipProbabilitiesFromNoSound = new List<(Node, double)>();
                 {
+                    skipProbabilitiesFromNoSound.Clear();
+
                     var samePitchRange = utauNotes.Skip(note.Index)
                         .TakeWhile(x => x.NoteNumber == note.NoteNumber)
                         .Last().Index;
@@ -106,7 +115,6 @@ namespace HmmMatching
                     {
                         // 同じ音高が連続するので、認識しにくい
                         const double skipProbability = 0.1;
-                        // TODO: インデックスを使うのか参照を使うのかはっきりしろ
                         var nextPitchStateIndex = Array.FindIndex(states, i + 1, x => x.Value.ReportingNote.Index == nextPitchNoteIndex);
                         var nextPitchState = states[nextPitchStateIndex];
                         var midStates = new ArraySegment<Node>(states, i + 2, nextPitchStateIndex - (i + 2)); // i+1 は通常ルートで計算されるので i+2 から
@@ -128,10 +136,10 @@ namespace HmmMatching
                                 minNextPitchRate
                             );
 
-                            var totalLength = midStates.Sum(x => x.Value.ReportingNote.Length);
+                            var totalLength = (double)midStates.Sum(x => x.Value.ReportingNote.Length);
                             foreach (var midState in midStates)
                             {
-                                var noteRate = (1.0 - nextPitchRate) * ((double)midState.Value.ReportingNote.Length / totalLength);
+                                var noteRate = (1.0 - nextPitchRate) * (midState.Value.ReportingNote.Length / totalLength);
 
                                 // 前の音符の長さ次第で無音を経由する確率が決まる
                                 var prevNote = utauNotes[midState.Value.ReportingNote.Index - 1];
@@ -160,9 +168,31 @@ namespace HmmMatching
                     else
                     {
                         // 短い音は飛ばしやすい
-                        // ****************************************
-                        // TODO
-                        // ****************************************
+                        const int maxSkipLength = 960;
+                        var maxSkipPosition = note.Position + note.Length + maxSkipLength; // 2分音符の長さまでは飛ばされる可能性アリ
+                        var midStates = states.Skip(i + 2).TakeWhile(x => x.Value.ReportingNote.Position <= maxSkipPosition).ToArray();
+
+                        if (midStates.Length > 0)
+                        {
+                            const double maxSkipProbability = 0.1;
+                            var totalLength = (double)midStates.Sum(x => x.Value.ReportingNote.Length);
+                            var skipProbability = maxSkipProbability * (totalLength / maxSkipLength);
+
+                            foreach (var midState in midStates)
+                            {
+                                var noteRate = midState.Value.ReportingNote.Length / totalLength;
+                                var prevNote = utauNotes[midState.Value.ReportingNote.Index - 1];
+                                var throughNoSoundProbability = prevNote.IsRestNote
+                                    ? ProbabilityOfNoSoundWhenRestNote(prevNote)
+                                    : ProbabilityOfNoSoundAfter(note);
+
+                                skipProbabilitiesFromNoSound.Add((midState, throughNoSoundProbability * noteRate * skipProbability));
+
+                                var p = (1.0 - throughNoSoundProbability) * noteRate * skipProbability;
+                                midState.AddIncommingEdge(state, p);
+                                pNext -= p;
+                            }
+                        }
                     }
                 }
 
@@ -229,17 +259,20 @@ namespace HmmMatching
 
                 // 次につなぐ
                 states[i + 1].AddIncommingEdge(state, pNext);
+                Console.WriteLine("{0}: {1}", i, pNext);
             }
 
             // 最後の状態の接続
-            // ****************************************
-            // TODO
-            // ****************************************
+            {
+                var lastState = states[states.Length - 1];
+                lastState.AddIncommingEdge(lastState, selfLoopProbability);
+                startState.AddIncommingEdge(lastState, 1.0 - selfLoopProbability);
+            }
 
             stopwatch.Stop();
-            Console.WriteLine($"HMM生成: {stopwatch.ElapsedMilliseconds}ms");
+            Console.WriteLine($"HMM生成: {stopwatch.Elapsed.TotalMilliseconds}ms");
 
-            //model.VerifyTransitionProbabilities();
+            model.VerifyTransitionProbabilities();
 
             return model;
 
@@ -277,10 +310,10 @@ namespace HmmMatching
         {
             if (!restNote.IsRestNote) throw new ArgumentException();
 
-            // 長さ 720 程度で 0.6 に到達するくらいの確率
+            // 長さ 720 程度で 0.65 に到達するくらいの確率
             const int maxLength = 720;
-            const double minProbability = 0.2;
-            const double maxProbability = 0.6;
+            const double minProbability = 0.3;
+            const double maxProbability = 0.65;
             return Math.Min(
                 minProbability + ((maxProbability - minProbability) / maxLength) * restNote.Length,
                 maxProbability

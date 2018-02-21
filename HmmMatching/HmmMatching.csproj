@@ -36,9 +36,12 @@
     <Reference Include="System.Core" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
-    <Reference Include="System.Windows" />
+    <Reference Include="System.Windows.Forms" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\ToneSeriesMatching\Buffer.cs">
+      <Link>Buffer.cs</Link>
+    </Compile>
     <Compile Include="..\ToneSeriesMatching\McLeodPitchMethod.cs">
       <Link>McLeodPitchMethod.cs</Link>
     </Compile>

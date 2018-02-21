@@ -73,7 +73,7 @@ namespace HmmMatching
             this._edges = newEdges;
         }
 
-        public HmmState<TState, TObservation>[] ViterbiPath(IReadOnlyList<double> initialProbabilities, IReadOnlyList<TObservation> observations)
+        public (HmmState<TState, TObservation>[], double[]) ViterbiPath(IReadOnlyList<double> initialProbabilities, IReadOnlyList<TObservation> observations, int indexOfStateProbabilities)
         {
             if (initialProbabilities == null) throw new ArgumentNullException(nameof(initialProbabilities));
             if (initialProbabilities.Count != this._states.Count) throw new ArgumentException(nameof(initialProbabilities) + " の要素数が状態数と一致しません。");
@@ -85,6 +85,7 @@ namespace HmmMatching
             var observationCount = observations.Count;
             var probabilities = new double[this._states.Count];
             var mlStates = new int[observationCount, this._states.Count];
+            var resultStateProbabilities = new double[this._states.Count];
 
             var firstObservation = observations[0];
             foreach (var state in this._states)
@@ -129,6 +130,11 @@ namespace HmmMatching
                     mlStates[i, toStateIndex] = argmaxP;
                 }
 
+                if (i == indexOfStateProbabilities)
+                {
+                    Array.Copy(newProbabilities, resultStateProbabilities, this._states.Count);
+                }
+
                 // 配列を入れ替えて次に備える
                 var tmp = probabilities;
                 probabilities = newProbabilities;
@@ -153,7 +159,7 @@ namespace HmmMatching
             for (var i = observationCount - 2; i >= 0; i--)
                 result[i] = this._states[mlStates[i + 1, result[i + 1].Index]];
 
-            return result;
+            return (result, resultStateProbabilities);
         }
 
         /// <summary>

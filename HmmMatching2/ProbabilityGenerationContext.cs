@@ -1,17 +1,15 @@
-﻿using System.Collections.Immutable;
+﻿using System.Collections.Generic;
 
 namespace HmmMatching
 {
     public class ProbabilityGenerationContext
     {
-        public ImmutableArray<UtauNote> Notes { get; }
-        public int TargetNoteIndex { get; }
+        public LinkedListNode<UtauNote> TargetNoteNode { get; }
         public double RemainingProbability { get; }
 
-        public ProbabilityGenerationContext(ImmutableArray<UtauNote> notes, int targetNoteIndex, double remainingProbability)
+        public ProbabilityGenerationContext(LinkedListNode<UtauNote> targetNoteNode, double remainingProbability)
         {
-            this.Notes = notes;
-            this.TargetNoteIndex = targetNoteIndex;
+            this.TargetNoteNode = targetNoteNode;
             this.RemainingProbability = remainingProbability;
         }
     }

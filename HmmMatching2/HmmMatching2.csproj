@@ -47,7 +47,8 @@
     </Compile>
     <Compile Include="HiddenMarkovModel.cs" />
     <Compile Include="HmmState.cs" />
-    <Compile Include="PitchHmmProbabilityGenerator.cs" />
+    <Compile Include="PitchHmmGenerationResult.cs" />
+    <Compile Include="PitchHmmGenerator.cs" />
     <Compile Include="PitchHmmState.cs" />
     <Compile Include="ProbabilityGenerationContext.cs" />
     <Compile Include="ProbabilityGenerationResult.cs" />

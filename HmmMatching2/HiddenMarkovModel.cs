@@ -33,7 +33,8 @@ namespace HmmMatching
                         logSum = Special.LogSum(logSum, lp);
                 }
 
-                if (double.IsNaN(logSum) || logSum < -0.01 || logSum > 0.01)
+                const double errorMargin = 0.01;
+                if (double.IsNaN(logSum) || logSum < -errorMargin || logSum > errorMargin)
                     throw new Exception();
             }
         }

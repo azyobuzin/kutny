@@ -8,9 +8,22 @@ namespace HmmMatching
 
     public class PitchHmmGenerator
     {
+        public static PitchHmmGenerator Default { get; }
+
+        static PitchHmmGenerator()
+        {
+            var x = new PitchHmmGenerator();
+            x.AddProbabiltiyGenerator(ProbabilityGenerators.SelfLoop);
+            x.AddProbabiltiyGenerator(ProbabilityGenerators.StopSinging);
+            x.AddProbabiltiyGenerator(ProbabilityGenerators.MoveToFirstNoteInMeasure);
+            x.AddProbabiltiyGenerator(ProbabilityGenerators.MoveToFirstNoteInPreviousMeasure);
+            x.AddProbabiltiyGenerator(ProbabilityGenerators.MoveToForwardNotes);
+            Default = x;
+        }
+
         private readonly List<ProbabilityGenerator> _generators = new List<ProbabilityGenerator>();
 
-        public void Add(ProbabilityGenerator generator)
+        public void AddProbabiltiyGenerator(ProbabilityGenerator generator)
         {
             this._generators.Add(generator ?? throw new ArgumentNullException(nameof(generator)));
         }
@@ -44,8 +57,14 @@ namespace HmmMatching
                 node = node.Next;
             }
 
-            var viaNoSoundEdges = new List<(int, double)>();
             node = noteList.First;
+
+            // 初期状態の自己ループ
+            startState.AddIncomingEdge(startState, Math.Log(0.6));
+            // 最初のノートに移動
+            statesByNotes[node.Value.Index].AddIncomingEdge(startState, Math.Log(0.4));
+
+            var viaNoSoundEdges = new List<(int, double)>();
             while (node != null)
             {
                 var note = node.Value;
@@ -66,24 +85,25 @@ namespace HmmMatching
 
                         foreach (var result in results)
                         {
-                            if (result.DirectProbability != 0.0)
+                            if (result == null || result.Probability == 0.0) continue;
+
+                            if (result.Probability != 0.0)
                             {
-                                if (result.DirectProbability < 0.0 || result.DirectProbability > 1.0)
-                                    throw new Exception(nameof(result.DirectProbability) + " が確率として不正な値です。");
+                                if (result.Probability < 0.0 || result.Probability > 1.0)
+                                    throw new Exception("確率として不正な値です。");
 
-                                // 直接遷移の接続
-                                statesByNotes[result.ToNoteIndex].AddIncomingEdge(state, Math.Log(result.DirectProbability));
-                                remainingProbability -= result.DirectProbability;
-                            }
-
-                            if (result.ProbabilityViaNoSoundState != 0.0)
-                            {
-                                if (result.ProbabilityViaNoSoundState < 0.0 || result.ProbabilityViaNoSoundState > 1.0)
-                                    throw new Exception(nameof(result.ProbabilityViaNoSoundState) + " が確率として不正な値です。");
-
-                                // 無音経由はあとでまとめて
-                                viaNoSoundEdges.Add((result.ToNoteIndex, result.ProbabilityViaNoSoundState));
-                                totalProbabilityViaNoSoundState += result.ProbabilityViaNoSoundState;
+                                if (result.ViaNoSoundState)
+                                {
+                                    // 無音経由はあとでまとめて
+                                    viaNoSoundEdges.Add((result.ToNoteIndex, result.Probability));
+                                    totalProbabilityViaNoSoundState += result.Probability;
+                                }
+                                else
+                                {
+                                    // 直接遷移の接続
+                                    statesByNotes[result.ToNoteIndex].AddIncomingEdge(state, Math.Log(result.Probability));
+                                    remainingProbability -= result.Probability;
+                                }
                             }
                         }
                     }

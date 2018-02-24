@@ -3,14 +3,14 @@
     public class ProbabilityGenerationResult
     {
         public int ToNoteIndex { get; }
-        public double DirectProbability { get; }
-        public double ProbabilityViaNoSoundState { get; }
+        public double Probability { get; }
+        public bool ViaNoSoundState { get; }
 
-        public ProbabilityGenerationResult(int toNoteIndex, double directProbability, double probabilityViaNoSoundState)
+        public ProbabilityGenerationResult(int toNoteIndex, double probability, bool viaNoSoundState)
         {
             this.ToNoteIndex = toNoteIndex;
-            this.DirectProbability = directProbability;
-            this.ProbabilityViaNoSoundState = probabilityViaNoSoundState;
+            this.Probability = probability;
+            this.ViaNoSoundState = viaNoSoundState;
         }
     }
 }

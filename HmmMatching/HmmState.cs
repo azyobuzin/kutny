@@ -1,30 +1,61 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace HmmMatching
 {
-    public sealed class HmmState<TState, TObservation>
+    public class HmmState<TValue, TObservation>
     {
-        public HiddenMarkovModel<TState, TObservation> Model { get; }
-        public int Index { get; }
-        public TState Value { get; }
-        private readonly Func<TObservation, double> _emissionProbability;
+        private int _index;
+        private readonly Func<TObservation, double> _emissionLogProbability;
+        private readonly Dictionary<int, double> _outgoingEdges = new Dictionary<int, double>();
 
-        internal HmmState(HiddenMarkovModel<TState, TObservation> model, int index, TState value, Func<TObservation, double> emissionProbability)
+        public HiddenMarkovModel<TValue, TObservation> Model { get; private set; }
+        public TValue Value { get; }
+
+        public HmmState(TValue value, Func<TObservation, double> emissionLogProbability)
         {
-            this.Model = model;
-            this.Index = index;
             this.Value = value;
-            this._emissionProbability = emissionProbability;
+            this._emissionLogProbability = emissionLogProbability;
         }
 
-        public double EmissionProbability(TObservation emission) => this._emissionProbability(emission);
+        public int Index => this.Model != null ? this._index : throw new InvalidOperationException();
 
-        public void AddIncommingEdge(HmmState<TState, TObservation> from, double probability)
+        public IReadOnlyDictionary<int, double> LogProbabilitiesByOutgoingStateIndexes => this._outgoingEdges;
+
+        public double EmissionLogProbability(TObservation observation) => this._emissionLogProbability(observation);
+
+        internal void SetModel(HiddenMarkovModel<TValue, TObservation> model, int index)
         {
-            if (from == null) throw new ArgumentNullException(nameof(from));
-            if (from.Model != this.Model) throw new ArgumentException();
+            if (model == null) throw new ArgumentNullException(nameof(model));
+            if (this.Model != null) throw new InvalidOperationException();
 
-            this.Model.SetTransitionProbability(from.Index, this.Index, probability);
+            this.Model = model;
+            this._index = index;
+        }
+
+        public void AddOutgoingEdge(HmmState<TValue, TObservation> to, double logProbability)
+        {
+            if (this.Model == null) throw new InvalidOperationException();
+            if (to == null) throw new ArgumentNullException(nameof(to));
+            if (to.Model != this.Model) throw new ArgumentException(nameof(to));
+            if (!(logProbability <= 0.0)) throw new ArgumentOutOfRangeException(nameof(logProbability));
+
+            if (double.IsNegativeInfinity(logProbability))
+                this._outgoingEdges.Remove(to.Index);
+            else
+                this._outgoingEdges[to.Index] = logProbability;
+        }
+
+        public void AddOutgoingEdge(int toIndex, double logProbability)
+        {
+            if (this.Model == null) throw new InvalidOperationException();
+            if (toIndex < 0 || toIndex >= this.Model.States.Count) throw new ArgumentOutOfRangeException(nameof(toIndex));
+            if (!(logProbability <= 0.0)) throw new ArgumentOutOfRangeException(nameof(logProbability));
+
+            if (double.IsNegativeInfinity(logProbability))
+                this._outgoingEdges.Remove(toIndex);
+            else
+                this._outgoingEdges[toIndex] = logProbability;
         }
     }
 }

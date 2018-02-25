@@ -18,6 +18,7 @@ namespace HmmMatching
             x.AddProbabiltiyGenerator(ProbabilityGenerators.MoveToFirstNoteInMeasure);
             x.AddProbabiltiyGenerator(ProbabilityGenerators.MoveToFirstNoteInPreviousMeasure);
             x.AddProbabiltiyGenerator(ProbabilityGenerators.MoveToForwardNotes);
+            x.AddProbabiltiyGenerator(ProbabilityGenerators.MoveToStartFromLastNote);
             Default = x;
         }
 
@@ -45,11 +46,13 @@ namespace HmmMatching
                 if (!note.IsRestNote)
                 {
                     var s = new State(PitchHmmState.CreateEmittingSoundState(note), NoteProbability(note));
+                    model.AddState(s);
                     statesByNotes.Add(note.Index, s);
 
                     if (node.Next != null)
                     {
                         var ns = new State(PitchHmmState.CreateNoSoundState(note), NoSoundStateEmissionProbability);
+                        model.AddState(ns);
                         noSoundStatesByNotes.Add(note.Index, ns);
                     }
                 }
@@ -60,9 +63,9 @@ namespace HmmMatching
             node = noteList.First;
 
             // 初期状態の自己ループ
-            startState.AddOutgoingEdge(startState, Math.Log(0.6));
+            startState.AddOutgoingEdge(startState, Math.Log(0.7));
             // 最初のノートに移動
-            startState.AddOutgoingEdge(statesByNotes[node.Value.Index], Math.Log(0.4));
+            startState.AddOutgoingEdge(statesByNotes[node.Value.Index], Math.Log(0.3));
 
             var viaNoSoundEdges = new List<(int, double)>();
             while (node != null)
@@ -80,7 +83,7 @@ namespace HmmMatching
                     // 順番にジェネレータを回していく
                     foreach (var generator in this._generators)
                     {
-                        var results = generator(new ProbabilityGenerationContext(node, remainingProbability));
+                        var results = generator(new ProbabilityGenerationContext(node, startState.Index, remainingProbability));
                         if (results == null) continue;
 
                         foreach (var result in results)
@@ -102,13 +105,12 @@ namespace HmmMatching
                                 {
                                     // 直接遷移の接続
                                     state.AddOutgoingEdge(statesByNotes[result.ToNoteIndex], Math.Log(result.Probability));
-                                    remainingProbability -= result.Probability;
                                 }
+
+                                remainingProbability -= result.Probability;
                             }
                         }
                     }
-
-                    remainingProbability -= totalProbabilityViaNoSoundState;
 
                     const double errorMargin = 0.01;
                     if (remainingProbability < -errorMargin)
@@ -116,22 +118,25 @@ namespace HmmMatching
                     if (remainingProbability > errorMargin)
                         throw new Exception("合計確率が 1 になっていません。");
 
-                    // 無音を経由した接続
-                    var logTotalProbabilityViaNoSoundState = Math.Log(totalProbabilityViaNoSoundState);
-                    var noSoundState = noSoundStatesByNotes[note.Index];
-                    state.AddOutgoingEdge(noSoundState, logTotalProbabilityViaNoSoundState);
-
-                    const double noSoundSelfLoopProbability = 0.3; // 無音状態をループする確率（雑音に反応してしまったり）
-                    noSoundState.AddOutgoingEdge(noSoundState, Math.Log(noSoundSelfLoopProbability));
-
-                    // (1.0 - noSoundSelfLoopProbability) / totalProbabilityViaNoSoundState
-                    var adj = Math.Log(1.0 - noSoundSelfLoopProbability) - logTotalProbabilityViaNoSoundState;
-
-                    foreach (var (toNoteIndex, probability) in viaNoSoundEdges)
+                    if (viaNoSoundEdges.Count > 0)
                     {
-                        // probability * (1.0 - noSoundSelfLoopProbability) / totalProbabilityViaNoSoundState
-                        var logP = Math.Log(probability) + adj;
-                        noSoundState.AddOutgoingEdge(statesByNotes[toNoteIndex], logP);
+                        // 無音を経由した接続
+                        var logTotalProbabilityViaNoSoundState = Math.Log(totalProbabilityViaNoSoundState);
+                        var noSoundState = noSoundStatesByNotes[note.Index];
+                        state.AddOutgoingEdge(noSoundState, logTotalProbabilityViaNoSoundState);
+
+                        const double noSoundSelfLoopProbability = 0.3; // 無音状態をループする確率（雑音に反応してしまったり）
+                        noSoundState.AddOutgoingEdge(noSoundState, Math.Log(noSoundSelfLoopProbability));
+
+                        // (1.0 - noSoundSelfLoopProbability) / totalProbabilityViaNoSoundState
+                        var adj = Math.Log(1.0 - noSoundSelfLoopProbability) - logTotalProbabilityViaNoSoundState;
+
+                        foreach (var (toNoteIndex, probability) in viaNoSoundEdges)
+                        {
+                            // probability * (1.0 - noSoundSelfLoopProbability) / totalProbabilityViaNoSoundState
+                            var logP = Math.Log(probability) + adj;
+                            noSoundState.AddOutgoingEdge(statesByNotes[toNoteIndex], logP);
+                        }
                     }
                 }
 
@@ -143,9 +148,9 @@ namespace HmmMatching
 
         private static double NoSoundStateEmissionProbability(PitchHmmEmission emission)
         {
-            // 無音 0.7、それ以外 0.3
+            // 無音 0.5、それ以外 0.5
             // 変化したタイミングで入力が来るので、無音でないパターンもそれなりに可能性があると考える
-            return Math.Log(emission.IsSilent ? 0.7 : 0.3 / 12.0);
+            return Math.Log(emission.IsSilent ? 0.5 : 0.5 / 12.0);
         }
 
         private static Func<PitchHmmEmission, double> NoteProbability(UtauNote note)
@@ -154,7 +159,7 @@ namespace HmmMatching
             if (note.IsRestNote) throw new ArgumentException();
 
             // 正規分布
-            const double stdDev = 0.5;
+            const double stdDev = 0.6;
             var mean = note.NoteNumber % 12;
             return e =>
             {

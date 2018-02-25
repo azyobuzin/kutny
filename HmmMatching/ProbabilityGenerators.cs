@@ -10,7 +10,7 @@ namespace HmmMatching
         /// </summary>
         public static IEnumerable<ProbabilityGenerationResult> SelfLoop(ProbabilityGenerationContext context)
         {
-            const double selfLoopProbability = 0.05;
+            const double selfLoopProbability = 0.2;
             yield return new ProbabilityGenerationResult(context.TargetNoteNode.Value.Index, selfLoopProbability, false);
         }
 
@@ -19,8 +19,10 @@ namespace HmmMatching
         /// </summary>
         public static IEnumerable<ProbabilityGenerationResult> StopSinging(ProbabilityGenerationContext context)
         {
+            if (context.TargetNoteNode.Next == null) yield break;
+
             const double startProbablitiy = 0.01;
-            yield return new ProbabilityGenerationResult(context.TargetNoteNode.Value.Index, startProbablitiy, true);
+            yield return new ProbabilityGenerationResult(context.StartStateIndex, startProbablitiy, true);
         }
 
         /// <summary>
@@ -28,12 +30,17 @@ namespace HmmMatching
         /// </summary>
         public static IEnumerable<ProbabilityGenerationResult> MoveToFirstNoteInMeasure(ProbabilityGenerationContext context)
         {
+            if (context.TargetNoteNode.Next == null) yield break;
+
             var note = context.TargetNoteNode.Value;
             var measureStartPosition = note.Position - note.Position % 1920;
 
-            var firstStateInMeasure = context.TargetNoteNode;
-            while (firstStateInMeasure.Previous?.Value.Position >= measureStartPosition)
-                firstStateInMeasure = firstStateInMeasure.Previous;
+            var n = context.TargetNoteNode;
+            var firstStateInMeasure = n;
+            while ((n = n.Previous)?.Value.Position >= measureStartPosition)
+            {
+                if (!n.Value.IsRestNote) firstStateInMeasure = n;
+            }
 
             if (firstStateInMeasure.Value.Position < note.Position)
                 yield return new ProbabilityGenerationResult(firstStateInMeasure.Value.Index, 0.012, true);
@@ -44,13 +51,18 @@ namespace HmmMatching
         /// </summary>
         public static IEnumerable<ProbabilityGenerationResult> MoveToFirstNoteInPreviousMeasure(ProbabilityGenerationContext context)
         {
+            if (context.TargetNoteNode.Next == null) yield break;
+
             var note = context.TargetNoteNode.Value;
             var measureStartPosition = note.Position - note.Position % 1920;
             var previousMeasureStartPosition = measureStartPosition - 1920;
 
-            var firstStateInPreviousMeasure = context.TargetNoteNode;
-            while (firstStateInPreviousMeasure.Previous?.Value.Position >= measureStartPosition)
-                firstStateInPreviousMeasure = firstStateInPreviousMeasure.Previous;
+            var n = context.TargetNoteNode;
+            var firstStateInPreviousMeasure = n;
+            while ((n = n.Previous)?.Value.Position >= measureStartPosition)
+            {
+                if (!n.Value.IsRestNote) firstStateInPreviousMeasure = n;
+            }
 
             if (firstStateInPreviousMeasure.Value.Position < measureStartPosition)
                 yield return new ProbabilityGenerationResult(firstStateInPreviousMeasure.Value.Index, 0.01, true);
@@ -86,14 +98,20 @@ namespace HmmMatching
             while (node != sentinel)
             {
                 var n = node.Value;
-                var p = context.RemainingProbability * VirtualLength(node) / totalLength;
 
-                var viaNoSoundProbability = node.Previous?.Value is UtauNote prevNote && prevNote.IsRestNote
-                    ? ProbabilityOfNoSoundWhenRestNote(prevNote)
-                    : ProbabilityOfNoSoundAfter(n);
+                if (!n.IsRestNote)
+                {
+                    var p = context.RemainingProbability * VirtualLength(node) / totalLength;
 
-                yield return new ProbabilityGenerationResult(n.Index, (1.0 - viaNoSoundProbability) * p, false);
-                yield return new ProbabilityGenerationResult(n.Index, viaNoSoundProbability * p, true);
+                    var viaNoSoundProbability = node.Previous?.Value is UtauNote prevNote && prevNote.IsRestNote
+                        ? ProbabilityOfNoSoundWhenRestNote(prevNote)
+                        : ProbabilityOfNoSoundAfter(n);
+
+                    yield return new ProbabilityGenerationResult(n.Index, (1.0 - viaNoSoundProbability) * p, false);
+                    yield return new ProbabilityGenerationResult(n.Index, viaNoSoundProbability * p, true);
+                }
+
+                node = node.Next;
             }
 
             double VirtualLength(LinkedListNode<UtauNote> noteNode)
@@ -104,9 +122,13 @@ namespace HmmMatching
                 if (noteNode.Previous?.Value.NoteNumber == noteNode.Value.NoteNumber)
                     l *= 0.5;
 
-                // next が離れているほど確率を下げる
+                // next から離れているほど確率を下げる
                 var n = next;
-                while (n != noteNode) l *= 0.5;
+                while (n != noteNode)
+                {
+                    l *= 0.5;
+                    n = n.Next;
+                }
 
                 return l;
             }
@@ -147,6 +169,12 @@ namespace HmmMatching
                 minProbability + ((maxProbability - minProbability) / maxLength) * restNote.Length,
                 maxProbability
             );
+        }
+
+        public static IEnumerable<ProbabilityGenerationResult> MoveToStartFromLastNote(ProbabilityGenerationContext context)
+        {
+            if (context.TargetNoteNode.Next != null) yield break;
+            yield return new ProbabilityGenerationResult(context.StartStateIndex, context.RemainingProbability, false);
         }
     }
 }

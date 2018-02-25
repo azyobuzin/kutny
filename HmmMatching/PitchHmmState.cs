@@ -1,14 +1,42 @@
 ﻿namespace HmmMatching
 {
-    public struct PitchHmmState
+    public class PitchHmmState
     {
-        public string Label { get; }
         public UtauNote ReportingNote { get; }
+        public bool IsSilentState { get; }
+        public bool IsStartState => this.ReportingNote == null;
 
-        public PitchHmmState(string label, UtauNote reportingNote)
+        protected PitchHmmState(UtauNote reportingNote, bool isSilentState)
         {
-            this.Label = label;
             this.ReportingNote = reportingNote;
+            this.IsSilentState = isSilentState;
+        }
+
+        public override string ToString()
+        {
+            return this.IsStartState
+                ? "スタート"
+                : string.Format(
+                    "{0} {1} {2}",
+                    this.ReportingNote.Index,
+                    this.IsSilentState ? "無" : Utils.ToNoteName(this.ReportingNote.NoteNumber % 12),
+                    this.ReportingNote.Lyric
+                );
+        }
+
+        public static PitchHmmState CreateStartState()
+        {
+            return new PitchHmmState(null, true);
+        }
+
+        public static PitchHmmState CreateEmittingSoundState(UtauNote reportingNote)
+        {
+            return new PitchHmmState(reportingNote, false);
+        }
+
+        public static PitchHmmState CreateNoSoundState(UtauNote reportingNote)
+        {
+            return new PitchHmmState(reportingNote, true);
         }
     }
 }

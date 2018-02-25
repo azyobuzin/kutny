@@ -39,9 +39,6 @@
     <Reference Include="System.Windows.Forms" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\ToneSeriesMatching\Buffer.cs">
-      <Link>Buffer.cs</Link>
-    </Compile>
     <Compile Include="..\ToneSeriesMatching\McLeodPitchMethod.cs">
       <Link>McLeodPitchMethod.cs</Link>
     </Compile>
@@ -54,10 +51,17 @@
     <Compile Include="HiddenMarkovModel.cs" />
     <Compile Include="HmmState.cs" />
     <Compile Include="PitchHmmEmission.cs" />
+    <Compile Include="PitchHmmGenerationResult.cs" />
+    <Compile Include="PitchHmmGenerator.cs" />
     <Compile Include="PitchHmmState.cs" />
+    <Compile Include="ProbabilityGenerationContext.cs" />
+    <Compile Include="ProbabilityGenerationResult.cs" />
+    <Compile Include="ProbabilityGenerators.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SingingPositionTracker.cs" />
     <Compile Include="UtauNote.cs" />
+    <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

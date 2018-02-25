@@ -28,7 +28,7 @@ namespace HmmMatching
             this._generators.Add(generator ?? throw new ArgumentNullException(nameof(generator)));
         }
 
-        public PitchHmmGenerationResult Generate(IEnumerable<UtauNote> notes)
+        public HmmState<PitchHmmState, PitchHmmEmission> Generate(IEnumerable<UtauNote> notes)
         {
             var noteList = new LinkedList<UtauNote>(notes);
             var model = new HiddenMarkovModel<PitchHmmState, PitchHmmEmission>();
@@ -89,7 +89,7 @@ namespace HmmMatching
 
                             if (result.Probability != 0.0)
                             {
-                                if (result.Probability < 0.0 || result.Probability > 1.0)
+                                if (!(result.Probability >= 0.0 && result.Probability <= 1.0)) // NaN 対応のために not を使う
                                     throw new Exception("確率として不正な値です。");
 
                                 if (result.ViaNoSoundState)
@@ -138,7 +138,7 @@ namespace HmmMatching
                 node = node.Next;
             }
 
-            return new PitchHmmGenerationResult(model, startState);
+            return startState;
         }
 
         private static double NoSoundStateEmissionProbability(PitchHmmEmission emission)

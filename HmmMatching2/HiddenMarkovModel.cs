@@ -21,22 +21,22 @@ namespace HmmMatching
         /// <summary>
         /// 各状態の遷移確率の和が 1 であることを確認します。
         /// </summary>
-        public void VerifyEdges()
-        {
-            foreach (var fromState in this._states)
-            {
-                var logSum = double.NegativeInfinity;
+        //public void VerifyEdges()
+        //{
+        //    foreach (var fromState in this._states)
+        //    {
+        //        var logSum = double.NegativeInfinity;
 
-                foreach (var toState in this._states)
-                {
-                    if (toState.LogProbabilitiesByIncomingStateIndexes.TryGetValue(fromState.Index, out var lp))
-                        logSum = Special.LogSum(logSum, lp);
-                }
+        //        foreach (var toState in this._states)
+        //        {
+        //            if (toState.LogProbabilitiesByIncomingStateIndexes.TryGetValue(fromState.Index, out var lp))
+        //                logSum = Special.LogSum(logSum, lp);
+        //        }
 
-                const double errorMargin = 0.01;
-                if (double.IsNaN(logSum) || logSum < -errorMargin || logSum > errorMargin)
-                    throw new Exception();
-            }
-        }
+        //        const double errorMargin = 0.01;
+        //        if (double.IsNaN(logSum) || logSum < -errorMargin || logSum > errorMargin)
+        //            throw new Exception();
+        //    }
+        //}
     }
 }

@@ -60,9 +60,9 @@ namespace HmmMatching
             node = noteList.First;
 
             // 初期状態の自己ループ
-            startState.AddIncomingEdge(startState, Math.Log(0.6));
+            startState.AddOutgoingEdge(startState, Math.Log(0.6));
             // 最初のノートに移動
-            statesByNotes[node.Value.Index].AddIncomingEdge(startState, Math.Log(0.4));
+            startState.AddOutgoingEdge(statesByNotes[node.Value.Index], Math.Log(0.4));
 
             var viaNoSoundEdges = new List<(int, double)>();
             while (node != null)
@@ -101,7 +101,7 @@ namespace HmmMatching
                                 else
                                 {
                                     // 直接遷移の接続
-                                    statesByNotes[result.ToNoteIndex].AddIncomingEdge(state, Math.Log(result.Probability));
+                                    state.AddOutgoingEdge(statesByNotes[result.ToNoteIndex], Math.Log(result.Probability));
                                     remainingProbability -= result.Probability;
                                 }
                             }
@@ -119,10 +119,10 @@ namespace HmmMatching
                     // 無音を経由した接続
                     var logTotalProbabilityViaNoSoundState = Math.Log(totalProbabilityViaNoSoundState);
                     var noSoundState = noSoundStatesByNotes[note.Index];
-                    noSoundState.AddIncomingEdge(state, logTotalProbabilityViaNoSoundState);
+                    state.AddOutgoingEdge(noSoundState, logTotalProbabilityViaNoSoundState);
 
                     const double noSoundSelfLoopProbability = 0.3; // 無音状態をループする確率（雑音に反応してしまったり）
-                    noSoundState.AddIncomingEdge(noSoundState, Math.Log(noSoundSelfLoopProbability));
+                    noSoundState.AddOutgoingEdge(noSoundState, Math.Log(noSoundSelfLoopProbability));
 
                     // (1.0 - noSoundSelfLoopProbability) / totalProbabilityViaNoSoundState
                     var adj = Math.Log(1.0 - noSoundSelfLoopProbability) - logTotalProbabilityViaNoSoundState;
@@ -131,7 +131,7 @@ namespace HmmMatching
                     {
                         // probability * (1.0 - noSoundSelfLoopProbability) / totalProbabilityViaNoSoundState
                         var logP = Math.Log(probability) + adj;
-                        statesByNotes[toNoteIndex].AddIncomingEdge(noSoundState, logP);
+                        noSoundState.AddOutgoingEdge(statesByNotes[toNoteIndex], logP);
                     }
                 }
 

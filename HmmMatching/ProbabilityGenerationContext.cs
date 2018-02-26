@@ -4,14 +4,14 @@ namespace HmmMatching
 {
     public class ProbabilityGenerationContext
     {
+        public LinkedList<UtauNote> Notes { get; }
         public LinkedListNode<UtauNote> TargetNoteNode { get; }
-        public int StartStateIndex { get; }
         public double RemainingProbability { get; }
 
-        public ProbabilityGenerationContext(LinkedListNode<UtauNote> targetNoteNode, int startStateIndex, double remainingProbability)
+        public ProbabilityGenerationContext(LinkedList<UtauNote> notes, LinkedListNode<UtauNote> targetNoteNode, double remainingProbability)
         {
+            this.Notes = notes;
             this.TargetNoteNode = targetNoteNode;
-            this.StartStateIndex = startStateIndex;
             this.RemainingProbability = remainingProbability;
         }
     }

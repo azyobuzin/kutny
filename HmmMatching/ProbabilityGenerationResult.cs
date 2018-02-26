@@ -12,5 +12,12 @@
             this.Probability = probability;
             this.ViaNoSoundState = viaNoSoundState;
         }
+
+        public static ProbabilityGenerationResult CreateToStartState(double probability, bool viaNoSoundState)
+        {
+            return new ProbabilityGenerationResult(-1, probability, viaNoSoundState);
+        }
+
+        public bool ToStartState => this.ToNoteIndex < 0;
     }
 }

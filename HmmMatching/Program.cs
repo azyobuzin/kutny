@@ -99,7 +99,6 @@ namespace HmmMatching
         {
             var utauNotes = LoadUtauScript(fileName).ToArray();
 
-
             var stopwatch = Stopwatch.StartNew();
 
             var startState = PitchHmmGenerator.Default.Generate(utauNotes);

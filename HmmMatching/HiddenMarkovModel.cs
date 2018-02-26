@@ -30,7 +30,7 @@ namespace HmmMatching
                     .Values
                     .Aggregate(double.NegativeInfinity, Special.LogSum);
 
-                const double errorMargin = 0.2;
+                const double errorMargin = 0.1;
                 if (!(logSum >= -errorMargin && logSum <= errorMargin))
                     throw new Exception();
             }

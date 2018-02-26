@@ -14,9 +14,9 @@ namespace HmmMatching
         {
             var x = new PitchHmmGenerator();
             x.AddProbabiltiyGenerator(ProbabilityGenerators.SelfLoop);
-            x.AddProbabiltiyGenerator(ProbabilityGenerators.StopSinging);
-            x.AddProbabiltiyGenerator(ProbabilityGenerators.MoveToFirstNoteInMeasure);
-            x.AddProbabiltiyGenerator(ProbabilityGenerators.MoveToFirstNoteInPreviousMeasure);
+            //x.AddProbabiltiyGenerator(ProbabilityGenerators.StopSinging);
+            //x.AddProbabiltiyGenerator(ProbabilityGenerators.MoveToFirstNoteInMeasure);
+            //x.AddProbabiltiyGenerator(ProbabilityGenerators.MoveToFirstNoteInPreviousMeasure);
             x.AddProbabiltiyGenerator(ProbabilityGenerators.MoveToForwardNotes);
             x.AddProbabiltiyGenerator(ProbabilityGenerators.MoveToStartFromLastNote);
             Default = x;
@@ -60,97 +60,104 @@ namespace HmmMatching
                 node = node.Next;
             }
 
+            // スタート状態からの遷移確率を生成
+            RunGenerators(startState, null);
+
+            // 他の状態の遷移確率を生成
             node = noteList.First;
-
-            // 初期状態の自己ループ
-            startState.AddOutgoingEdge(startState, Math.Log(0.7));
-            // 最初のノートに移動
-            startState.AddOutgoingEdge(statesByNotes[node.Value.Index], Math.Log(0.3));
-
-            var viaNoSoundEdges = new List<(int, double)>();
             while (node != null)
             {
                 var note = node.Value;
 
                 if (!note.IsRestNote)
                 {
-                    viaNoSoundEdges.Clear();
-
                     var state = statesByNotes[note.Index];
-                    var remainingProbability = 1.0;
-                    var totalProbabilityViaNoSoundState = 0.0;
-
-                    // 順番にジェネレータを回していく
-                    foreach (var generator in this._generators)
-                    {
-                        var results = generator(new ProbabilityGenerationContext(node, startState.Index, remainingProbability));
-                        if (results == null) continue;
-
-                        foreach (var result in results)
-                        {
-                            if (result == null || result.Probability == 0.0) continue;
-
-                            if (result.Probability != 0.0)
-                            {
-                                if (!(result.Probability >= 0.0 && result.Probability <= 1.0)) // NaN 対応のために not を使う
-                                    throw new Exception("確率として不正な値です。");
-
-                                if (result.ViaNoSoundState)
-                                {
-                                    // 無音経由はあとでまとめて
-                                    viaNoSoundEdges.Add((result.ToNoteIndex, result.Probability));
-                                    totalProbabilityViaNoSoundState += result.Probability;
-                                }
-                                else
-                                {
-                                    // 直接遷移の接続
-                                    state.AddOutgoingEdge(statesByNotes[result.ToNoteIndex], Math.Log(result.Probability));
-                                }
-
-                                remainingProbability -= result.Probability;
-                            }
-                        }
-                    }
-
-                    const double errorMargin = 0.01;
-                    if (remainingProbability < -errorMargin)
-                        throw new Exception("合計確率が 1 を超えました。");
-                    if (remainingProbability > errorMargin)
-                        throw new Exception("合計確率が 1 になっていません。");
-
-                    if (viaNoSoundEdges.Count > 0)
-                    {
-                        // 無音を経由した接続
-                        var logTotalProbabilityViaNoSoundState = Math.Log(totalProbabilityViaNoSoundState);
-                        var noSoundState = noSoundStatesByNotes[note.Index];
-                        state.AddOutgoingEdge(noSoundState, logTotalProbabilityViaNoSoundState);
-
-                        const double noSoundSelfLoopProbability = 0.3; // 無音状態をループする確率（雑音に反応してしまったり）
-                        noSoundState.AddOutgoingEdge(noSoundState, Math.Log(noSoundSelfLoopProbability));
-
-                        // (1.0 - noSoundSelfLoopProbability) / totalProbabilityViaNoSoundState
-                        var adj = Math.Log(1.0 - noSoundSelfLoopProbability) - logTotalProbabilityViaNoSoundState;
-
-                        foreach (var (toNoteIndex, probability) in viaNoSoundEdges)
-                        {
-                            // probability * (1.0 - noSoundSelfLoopProbability) / totalProbabilityViaNoSoundState
-                            var logP = Math.Log(probability) + adj;
-                            noSoundState.AddOutgoingEdge(statesByNotes[toNoteIndex], logP);
-                        }
-                    }
+                    RunGenerators(state, node);
                 }
 
                 node = node.Next;
             }
 
             return startState;
+
+            void RunGenerators(State fromState, LinkedListNode<UtauNote> noteNode)
+            {
+                var viaNoSoundEdges = new List<(int, double)>();
+                var remainingProbability = 1.0;
+                var totalProbabilityViaNoSoundState = 0.0;
+
+                // 順番にジェネレータを回していく
+                foreach (var generator in this._generators)
+                {
+                    var results = generator(new ProbabilityGenerationContext(noteList, noteNode, remainingProbability));
+                    if (results == null) continue;
+
+                    foreach (var result in results)
+                    {
+                        if (result == null || result.Probability == 0.0) continue;
+
+                        if (result.Probability != 0.0)
+                        {
+                            if (!(result.Probability >= 0.0 && result.Probability <= 1.0)) // NaN 対応のために not を使う
+                                throw new Exception("確率として不正な値です。");
+
+                            if (result.ViaNoSoundState)
+                            {
+                                if (noteNode == null)
+                                    throw new Exception("スタート状態から無音状態を経由することはできません。");
+
+                                // 無音経由はあとでまとめて
+                                viaNoSoundEdges.Add((result.ToNoteIndex, result.Probability));
+                                totalProbabilityViaNoSoundState += result.Probability;
+                            }
+                            else
+                            {
+                                // 直接遷移の接続
+                                var toState = result.ToNoteIndex < 0 ? startState : statesByNotes[result.ToNoteIndex];
+                                fromState.AddOutgoingEdge(toState, Math.Log(result.Probability));
+                            }
+
+                            remainingProbability -= result.Probability;
+                        }
+                    }
+                }
+
+                const double errorMargin = 0.01;
+                if (remainingProbability < -errorMargin)
+                    throw new Exception("合計確率が 1 を超えました。");
+                if (remainingProbability > errorMargin)
+                    throw new Exception("合計確率が 1 になっていません。");
+
+                if (viaNoSoundEdges.Count > 0)
+                {
+                    // 無音を経由した接続
+                    var logTotalProbabilityViaNoSoundState = Math.Log(totalProbabilityViaNoSoundState);
+                    var noSoundState = noSoundStatesByNotes[fromState.Value.ReportingNote.Index];
+                    fromState.AddOutgoingEdge(noSoundState, logTotalProbabilityViaNoSoundState);
+
+                    const double noSoundSelfLoopProbability = 0.3; // 無音状態をループする確率（雑音に反応してしまったり）
+                    noSoundState.AddOutgoingEdge(noSoundState, Math.Log(noSoundSelfLoopProbability));
+
+                    // (1.0 - noSoundSelfLoopProbability) / totalProbabilityViaNoSoundState
+                    var adj = Math.Log(1.0 - noSoundSelfLoopProbability) - logTotalProbabilityViaNoSoundState;
+
+                    foreach (var (toNoteIndex, probability) in viaNoSoundEdges)
+                    {
+                        // probability * (1.0 - noSoundSelfLoopProbability) / totalProbabilityViaNoSoundState
+                        var logP = Math.Log(probability) + adj;
+
+                        var toState = toNoteIndex < 0 ? startState : statesByNotes[toNoteIndex];
+                        noSoundState.AddOutgoingEdge(toState, logP);
+                    }
+                }
+            }
         }
 
         private static double NoSoundStateEmissionProbability(PitchHmmEmission emission)
         {
-            // 無音 0.5、それ以外 0.5
+            // 無音 0.3、それ以外 0.7
             // 変化したタイミングで入力が来るので、無音でないパターンもそれなりに可能性があると考える
-            return Math.Log(emission.IsSilent ? 0.5 : 0.5 / 12.0);
+            return Math.Log(emission.IsSilent ? 0.3 : 0.7 / 12.0);
         }
 
         private static Func<PitchHmmEmission, double> NoteProbability(UtauNote note)

@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Kutny.Common;
 using NAudio.Wave;
 using PitchDetector;
 
@@ -15,7 +16,7 @@ namespace UtagoeGui.Models
 
         public void StartLearning()
         {
-            var dir = Utils.GetTrainingDataDirectory();
+            var dir = CommonUtils.GetTrainingDataDirectory();
             var trainingData = new[] {
                 Path.Combine(dir, "あいうえお 2017-12-18 00-17-09.csv"),
                 Path.Combine(dir, "あいうえお 2018-01-20 16-48-52.csv")
@@ -115,7 +116,7 @@ namespace UtagoeGui.Models
                 var basicFreqs = new List<double>((Logics.AnalysisUnit - pitchOffsetDelta) / pitchOffsetDelta);
                 for (var offset = 0; offset <= Logics.AnalysisUnit - pitchWindowSize; offset += pitchOffsetDelta)
                 {
-                    var f = PitchAccord.EstimateBasicFrequency(
+                    var f = McLeodPitchMethod.EstimateFundamentalFrequency(
                         sampleRate,
                         new ReadOnlySpan<float>(samples, offset, pitchWindowSize)
                     );
@@ -128,7 +129,7 @@ namespace UtagoeGui.Models
 
                 basicFreqs.Sort();
                 var basicFreq = basicFreqs[basicFreqs.Count / 2]; // 中央値
-                var noteNum = Utils.HzToMidiNote(basicFreq);
+                var noteNum = CommonUtils.HzToMidiNote(basicFreq);
 
                 var block = new NoteBlockModel(unitCount, noteNum, vowelCandidate.Value);
 

@@ -4,10 +4,10 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{6F2016E5-1B90-42B9-9434-F7E4BDF84279}</ProjectGuid>
+    <ProjectGuid>{2C0A071A-08C1-4062-B4CF-C8D6636F441C}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>HmmMatching</RootNamespace>
-    <AssemblyName>HmmMatching</AssemblyName>
+    <RootNamespace>KeyEstimation</RootNamespace>
+    <AssemblyName>KeyEstimation</AssemblyName>
     <TargetFrameworkVersion>v4.7</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -35,33 +35,19 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Windows.Forms" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\ToneSeriesMatching\PitchUnit.cs">
-      <Link>PitchUnit.cs</Link>
-    </Compile>
-    <Compile Include="..\ToneSeriesMatching\UtauScriptReader.cs">
-      <Link>UtauScriptReader.cs</Link>
-    </Compile>
-    <Compile Include="HiddenMarkovModel.cs" />
-    <Compile Include="HmmState.cs" />
-    <Compile Include="PitchHmmEmission.cs" />
-    <Compile Include="PitchHmmGenerationResult.cs" />
-    <Compile Include="PitchHmmGenerator.cs" />
-    <Compile Include="PitchHmmState.cs" />
-    <Compile Include="ProbabilityGenerationContext.cs" />
-    <Compile Include="ProbabilityGenerationResult.cs" />
-    <Compile Include="ProbabilityGenerators.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SingingPositionTracker.cs" />
-    <Compile Include="UtauNote.cs" />
-    <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Kutny.Common\Kutny.Common.csproj">
+      <Project>{9c9bc2bc-5956-4ee0-ab89-b5b7d5b68757}</Project>
+      <Name>Kutny.Common</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Accord.Controls">
@@ -70,18 +56,9 @@
     <PackageReference Include="NAudio">
       <Version>1.8.4</Version>
     </PackageReference>
-    <PackageReference Include="System.Collections.Immutable">
-      <Version>1.4.0</Version>
-    </PackageReference>
     <PackageReference Include="System.Memory">
       <Version>4.5.0-preview1-26216-02</Version>
     </PackageReference>
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Kutny.Common\Kutny.Common.csproj">
-      <Project>{9c9bc2bc-5956-4ee0-ab89-b5b7d5b68757}</Project>
-      <Name>Kutny.Common</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

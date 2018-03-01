@@ -1,9 +1,10 @@
 ﻿using System;
 using System.IO;
+using System.Reflection;
 
-namespace PitchDetector
+namespace Kutny.Common
 {
-    public static class Utils
+    public static class CommonUtils
     {
         private static string s_trainingDataDirectory;
 
@@ -18,7 +19,7 @@ namespace PitchDetector
             if (Directory.Exists(inCurrentDir)) return inCurrentDir;
 
             // アセンブリの場所からさかのぼってみる
-            for (var path = Path.GetDirectoryName(typeof(Program).Assembly.Location);
+            for (var path = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
                 path != null;
                 path = Path.GetDirectoryName(path))
             {
@@ -31,6 +32,11 @@ namespace PitchDetector
             }
 
             throw new DirectoryNotFoundException(directoryName + " ディレクトリが見つかりませんでした。");
+        }
+
+        public static string GetTrainingFile(string fileName)
+        {
+            return Path.Combine(GetTrainingDataDirectory(), fileName);
         }
 
         public static int HzToMidiNote(double f)

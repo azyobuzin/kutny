@@ -138,6 +138,10 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Kutny.Common\Kutny.Common.csproj">
+      <Project>{9c9bc2bc-5956-4ee0-ab89-b5b7d5b68757}</Project>
+      <Name>Kutny.Common</Name>
+    </ProjectReference>
     <ProjectReference Include="..\PitchDetector\PitchDetector.csproj">
       <Project>{ae2069b9-9ac6-4df8-840c-6310f877a898}</Project>
       <Name>PitchDetector</Name>

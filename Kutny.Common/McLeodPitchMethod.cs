@@ -1,19 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Accord.Math;
 using Accord.Math.Transforms;
-using OxyPlot;
-using OxyPlot.Series;
 
-namespace PitchDetector
+namespace Kutny.Common
 {
-    public static class PitchAccord
+    public static class McLeodPitchMethod
     {
-        public static double? EstimateBasicFrequency(int sampleRate, ReadOnlySpan<float> samples)
+        /// <summary>
+        /// サンプル単位での基本周期を求める
+        /// </summary>
+        public static double? EstimateFundamentalDelay(ReadOnlySpan<float> samples)
         {
             // ACF
             // 1. zero pad
@@ -47,15 +46,6 @@ namespace PitchDetector
 
                 nsdf[i] = 2.0 * acf[i].Real / m;
             }
-
-            //var nsdfSeries = new LineSeries();
-            //nsdfSeries.Points.AddRange(nsdf.Select((x, i) => new DataPoint(1.0 / sampleRate * i, x)));
-            //var nsdfPlot = new PlotModel()
-            //{
-            //    Title = "NSDF",
-            //    Series = { nsdfSeries }
-            //};
-            //Program.ShowPlot(nsdfPlot);
 
             // ピーク検出
             var maxCorrelation = 0.0;
@@ -111,7 +101,12 @@ namespace PitchDetector
             var threshold = maxCorrelation * 0.8;
             var mainPeak = peaks.Find(x => x.Correlation >= threshold);
 
-            return sampleRate / mainPeak.Delay;
+            return mainPeak.Delay;
+        }
+
+        public static double? EstimateFundamentalFrequency(int sampleRate, ReadOnlySpan<float> samples)
+        {
+            return sampleRate / EstimateFundamentalDelay(samples);
         }
 
         /// <summary>
@@ -133,9 +128,6 @@ namespace PitchDetector
 
             // 頂点の公式
             var x = -b / (2.0 * a);
-
-            Debug.Assert(x >= x1 && x <= x3);
-
             return (x, a * x * x + b * x + c);
         }
 

@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using Accord.Controls;
 using NAudio.Wave;
 using System.Threading;
+using Kutny.Common;
 
 namespace ToneSeriesMatching
 {

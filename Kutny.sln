@@ -13,6 +13,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ToneSeriesMatching", "ToneS
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HmmMatching", "HmmMatching\HmmMatching.csproj", "{6F2016E5-1B90-42B9-9434-F7E4BDF84279}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KeyEstimation", "KeyEstimation\KeyEstimation.csproj", "{2C0A071A-08C1-4062-B4CF-C8D6636F441C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kutny.Common", "Kutny.Common\Kutny.Common.csproj", "{9C9BC2BC-5956-4EE0-AB89-B5B7D5B68757}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -35,6 +39,14 @@ Global
 		{6F2016E5-1B90-42B9-9434-F7E4BDF84279}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6F2016E5-1B90-42B9-9434-F7E4BDF84279}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6F2016E5-1B90-42B9-9434-F7E4BDF84279}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2C0A071A-08C1-4062-B4CF-C8D6636F441C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2C0A071A-08C1-4062-B4CF-C8D6636F441C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2C0A071A-08C1-4062-B4CF-C8D6636F441C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2C0A071A-08C1-4062-B4CF-C8D6636F441C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9C9BC2BC-5956-4EE0-AB89-B5B7D5B68757}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9C9BC2BC-5956-4EE0-AB89-B5B7D5B68757}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9C9BC2BC-5956-4EE0-AB89-B5B7D5B68757}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9C9BC2BC-5956-4EE0-AB89-B5B7D5B68757}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

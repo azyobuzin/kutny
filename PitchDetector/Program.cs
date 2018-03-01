@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows.Threading;
 using Accord.Math;
 using Accord.Statistics;
+using Kutny.Common;
 using NAudio.Wave;
 using OxyPlot;
 using OxyPlot.Axes;
@@ -43,7 +44,7 @@ namespace PitchDetector
             var data = new float[windowSize];
 
             // 2.5sのところから1024サンプル取得してくる
-            using (var reader = new WaveFileReader(Path.Combine(Utils.GetTrainingDataDirectory(), "あいうえお 2017-12-18 00-17-09.wav")))
+            using (var reader = new WaveFileReader(Path.Combine(CommonUtils.GetTrainingDataDirectory(), "あいうえお 2017-12-18 00-17-09.wav")))
             {
                 var provider = reader.ToSampleProvider()
                     .Skip(TimeSpan.FromSeconds(2.5))
@@ -66,7 +67,7 @@ namespace PitchDetector
             //    data[i] = (float)Math.Sin(2 * Math.PI * 440 * i / rate);
             //}
 
-            Console.WriteLine("{0} Hz", PitchAccord.EstimateBasicFrequency(rate, data));
+            Console.WriteLine("{0} Hz", McLeodPitchMethod.EstimateFundamentalFrequency(rate, data));
         }
 
         private static void PitchGraph()
@@ -75,7 +76,7 @@ namespace PitchDetector
 
             var series = new ScatterSeries();
 
-            using (var reader = new WaveFileReader(Path.Combine(Utils.GetTrainingDataDirectory(), "校歌 2018-01-17 15-10-46.wav")))
+            using (var reader = new WaveFileReader(Path.Combine(CommonUtils.GetTrainingDataDirectory(), "校歌 2018-01-17 15-10-46.wav")))
             {
                 var provider = reader.ToSampleProvider().ToMono();
                 var rate = provider.WaveFormat.SampleRate;
@@ -91,7 +92,7 @@ namespace PitchDetector
                         if (count == 0) return;
                         readSamples += count;
                     }
-                    var pitch = PitchAccord.EstimateBasicFrequency(rate, data);
+                    var pitch = McLeodPitchMethod.EstimateFundamentalFrequency(rate, data);
                     if (pitch.HasValue) history.AddLast(pitch.Value);
                 }
 
@@ -107,7 +108,7 @@ namespace PitchDetector
                         readSamples += count;
                     }
 
-                    var pitch = PitchAccord.EstimateBasicFrequency(rate, data);
+                    var pitch = McLeodPitchMethod.EstimateFundamentalFrequency(rate, data);
 
                     if (pitch.HasValue)
                     {
@@ -121,7 +122,7 @@ namespace PitchDetector
                             Array.Sort(h);
                             var med = h[h.Length / 2];
 
-                            series.Points.Add(new ScatterPoint((double)i / rate, Utils.HzToMidiNote(med)));
+                            series.Points.Add(new ScatterPoint((double)i / rate, CommonUtils.HzToMidiNote(med)));
                         }
                     }
                 }
@@ -141,7 +142,7 @@ namespace PitchDetector
 
             var series = new LineSeries();
 
-            using (var reader = new WaveFileReader(Path.Combine(Utils.GetTrainingDataDirectory(), "校歌 2018-01-17 15-10-46.wav")))
+            using (var reader = new WaveFileReader(Path.Combine(CommonUtils.GetTrainingDataDirectory(), "校歌 2018-01-17 15-10-46.wav")))
             {
                 var provider = reader.ToSampleProvider().ToMono();
                 var rate = provider.WaveFormat.SampleRate;
@@ -157,7 +158,7 @@ namespace PitchDetector
                         if (count == 0) return;
                         readSamples += count;
                     }
-                    var pitch = PitchAccord.EstimateBasicFrequency(rate, data);
+                    var pitch = McLeodPitchMethod.EstimateFundamentalFrequency(rate, data);
                     if (pitch.HasValue) history.AddLast(pitch.Value);
                 }
 
@@ -182,7 +183,7 @@ namespace PitchDetector
 
                     if (maxPower < 0.15) continue;
 
-                    var pitch = PitchAccord.EstimateBasicFrequency(rate, data);
+                    var pitch = McLeodPitchMethod.EstimateFundamentalFrequency(rate, data);
 
                     if (pitch.HasValue)
                     {
@@ -217,7 +218,7 @@ namespace PitchDetector
             var data = new float[windowSize];
 
             // 2.5s のところから 2048 サンプル取得してくる
-            using (var reader = new WaveFileReader(Path.Combine(Utils.GetTrainingDataDirectory(), "あいうえお 2017-12-18 00-17-09.wav")))
+            using (var reader = new WaveFileReader(Path.Combine(CommonUtils.GetTrainingDataDirectory(), "あいうえお 2017-12-18 00-17-09.wav")))
             {
                 var provider = reader.ToSampleProvider()
                     .Skip(TimeSpan.FromSeconds(2.5))
@@ -241,7 +242,7 @@ namespace PitchDetector
         private static VowelClassifier PrepareVowelClassifier()
         {
             var classifier = new NeuralNetworkVowelClassifier();
-            var dir = Utils.GetTrainingDataDirectory();
+            var dir = CommonUtils.GetTrainingDataDirectory();
 
             Task.WaitAll(
                 classifier.AddTrainingDataAsync(Path.Combine(dir, "あいうえお 2017-12-18 00-17-09.csv")),
@@ -262,7 +263,7 @@ namespace PitchDetector
             int rate;
             var data = new float[windowSize];
 
-            using (var reader = new WaveFileReader(Path.Combine(Utils.GetTrainingDataDirectory(), "校歌 2018-01-17 15-10-46.wav")))
+            using (var reader = new WaveFileReader(Path.Combine(CommonUtils.GetTrainingDataDirectory(), "校歌 2018-01-17 15-10-46.wav")))
             {
                 var provider = reader.ToSampleProvider()
                     .Skip(TimeSpan.FromSeconds(11))
@@ -286,7 +287,7 @@ namespace PitchDetector
             float[] samples;
             int rate;
 
-            using (var wavReader = new WaveFileReader(Path.Combine(Utils.GetTrainingDataDirectory(), "校歌 2018-01-17 15-10-46.wav")))
+            using (var wavReader = new WaveFileReader(Path.Combine(CommonUtils.GetTrainingDataDirectory(), "校歌 2018-01-17 15-10-46.wav")))
             {
                 var provider = wavReader.ToSampleProvider().ToMono();
                 rate = provider.WaveFormat.SampleRate;
@@ -355,7 +356,7 @@ namespace PitchDetector
                 var basicFreqs = new List<double>(analysisUnit / pitchOffsetDelta);
                 for (var offset = startIndex; offset <= endIndex - pitchWindowSize; offset += pitchOffsetDelta)
                 {
-                    var f = PitchAccord.EstimateBasicFrequency(
+                    var f = McLeodPitchMethod.EstimateFundamentalFrequency(
                         rate,
                         new ReadOnlySpan<float>(samples, offset, pitchWindowSize)
                     );
@@ -368,7 +369,7 @@ namespace PitchDetector
 
                 basicFreqs.Sort();
                 var basicFreq = basicFreqs[basicFreqs.Count / 2]; // 中央値
-                var noteNum = Utils.HzToMidiNote(basicFreq);
+                var noteNum = CommonUtils.HzToMidiNote(basicFreq);
 
                 var plotItem = new IntervalBarItem()
                 {
@@ -419,7 +420,7 @@ namespace PitchDetector
             float[] ReadSamples(string fileName, double secs)
             {
                 float[] xs;
-                using (var wavReader = new WaveFileReader(Path.Combine(Utils.GetTrainingDataDirectory(), fileName)))
+                using (var wavReader = new WaveFileReader(Path.Combine(CommonUtils.GetTrainingDataDirectory(), fileName)))
                 {
                     var provider = wavReader.ToSampleProvider().Skip(TimeSpan.FromSeconds(secs)).ToMono();
 
@@ -513,7 +514,7 @@ namespace PitchDetector
             var data = new float[windowSize];
 
             // 2.5sのところから1024サンプル取得してくる
-            using (var reader = new WaveFileReader(Path.Combine(Utils.GetTrainingDataDirectory(), "あいうえお 2017-12-18 00-17-09.wav")))
+            using (var reader = new WaveFileReader(Path.Combine(CommonUtils.GetTrainingDataDirectory(), "あいうえお 2017-12-18 00-17-09.wav")))
             {
                 var provider = reader.ToSampleProvider()
                     .Skip(TimeSpan.FromSeconds(2.5))

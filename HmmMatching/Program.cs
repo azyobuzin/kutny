@@ -10,8 +10,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Accord.Controls;
 using Accord.Math;
+using Kutny.Common;
 using NAudio.Wave;
-using McLeodPitchMethod = ToneSeriesMatching.McLeodPitchMethod;
 using PitchUnit = ToneSeriesMatching.PitchUnit;
 using UtauScriptReader = ToneSeriesMatching.UtauScriptReader;
 
@@ -23,7 +23,7 @@ namespace HmmMatching
     {
         public static void Main(string[] args)
         {
-            const string scoreFileName = @"C:\Users\azyob\Documents\Visual Studio 2017\Projects\PitchDetector\TrainingData\東京電機大学校歌.ust";
+            var scoreFileName = @"C:\Users\azyob\Documents\Visual Studio 2017\Projects\PitchDetector\TrainingData\東京電機大学校歌.ust";
             var startState = CreateHmm(scoreFileName);
 
             //OutputGraphs(startState.Model);

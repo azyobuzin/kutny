@@ -33,7 +33,7 @@ namespace PitchDetector
 
         private static void Run()
         {
-            MelFilteredSpectrum();
+            PitchGraph2();
         }
 
         private static void BasicTest()
@@ -135,6 +135,81 @@ namespace PitchDetector
             });
         }
 
+        private static void PitchGraph2()
+        {
+            const int windowSize = 1024;
+
+            var series = new LineSeries();
+
+            using (var reader = new WaveFileReader(Path.Combine(Utils.GetTrainingDataDirectory(), "校歌 2018-01-17 15-10-46.wav")))
+            {
+                var provider = reader.ToSampleProvider().ToMono();
+                var rate = provider.WaveFormat.SampleRate;
+
+                var history = new LinkedList<double>();
+
+                var data = new float[windowSize];
+                {
+                    // 1 回目
+                    for (var readSamples = 0; readSamples < data.Length;)
+                    {
+                        var count = provider.Read(data, readSamples, data.Length - readSamples);
+                        if (count == 0) return;
+                        readSamples += count;
+                    }
+                    var pitch = PitchAccord.EstimateBasicFrequency(rate, data);
+                    if (pitch.HasValue) history.AddLast(pitch.Value);
+                }
+
+                for (var i = windowSize; ; i += windowSize / 2)
+                {
+                    // 半分ずらして読み出し
+                    Array.Copy(data, windowSize / 2, data, 0, windowSize / 2);
+
+                    for (var readSamples = windowSize / 2; readSamples < data.Length;)
+                    {
+                        var count = provider.Read(data, readSamples, data.Length - readSamples);
+                        if (count == 0) goto Show;
+                        readSamples += count;
+                    }
+
+                    var maxPower = 0f;
+                    foreach (var x in data)
+                    {
+                        if (x > maxPower)
+                            maxPower = x;
+                    }
+
+                    if (maxPower < 0.15) continue;
+
+                    var pitch = PitchAccord.EstimateBasicFrequency(rate, data);
+
+                    if (pitch.HasValue)
+                    {
+                        history.AddLast(pitch.Value);
+                        if (history.Count >= 16)
+                        {
+                            if (history.Count > 16)
+                                history.RemoveFirst();
+
+                            var h = history.ToArray();
+                            Array.Sort(h);
+                            var med = h[h.Length / 2];
+
+                            series.Points.Add(new DataPoint((double)i / rate, 69.0 + 12.0 * Math.Log(med / 440.0, 2.0)));
+                        }
+                    }
+                }
+            }
+
+            Show:
+            ShowPlot(new PlotModel()
+            {
+                Title = "ピッチ",
+                Series = { series }
+            });
+        }
+
         private static void Mfcc()
         {
             const int windowSize = 2048;
@@ -202,7 +277,7 @@ namespace PitchDetector
                     readSamples += delta;
                 }
             }
-            
+
             Console.WriteLine(classifier.Decide(data, rate));
         }
 
@@ -454,9 +529,9 @@ namespace PitchDetector
                 }
             }
 
-            using (var writer = new StreamWriter("samples.txt",false, new UTF8Encoding(false)))
+            using (var writer = new StreamWriter("samples.txt", false, new UTF8Encoding(false)))
             {
-                for(var i = 0; i < data.Length; i++)
+                for (var i = 0; i < data.Length; i++)
                 {
                     writer.WriteLine("{0} {1}", i, data[i]);
                 }

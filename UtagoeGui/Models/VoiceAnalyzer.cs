@@ -112,7 +112,7 @@ namespace UtagoeGui.Models
 
                 // 512 ずつずらしながらピッチ検出
                 const int pitchOffsetDelta = 512;
-                var basicFreqs = new List<double>(Logics.AnalysisUnit / pitchOffsetDelta);
+                var basicFreqs = new List<double>((Logics.AnalysisUnit - pitchOffsetDelta) / pitchOffsetDelta);
                 for (var offset = 0; offset <= Logics.AnalysisUnit - pitchWindowSize; offset += pitchOffsetDelta)
                 {
                     var f = PitchAccord.EstimateBasicFrequency(

@@ -1,11 +1,17 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.27130.2024
+VisualStudioVersion = 15.0.27130.2036
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PitchDetector", "PitchDetector\PitchDetector.csproj", "{AE2069B9-9AC6-4DF8-840C-6310F877A898}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtagoeGui", "UtagoeGui\UtagoeGui.csproj", "{2EBA4DA1-AA87-451F-BAAE-1344152A01CA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "歌唱位置推定", "歌唱位置推定", "{1E91317A-C9A6-45E2-8496-89F32D143290}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ToneSeriesMatching", "ToneSeriesMatching\ToneSeriesMatching.csproj", "{83D2B89D-5B06-4E6D-9A15-FC45E936A9D1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HmmMatching", "HmmMatching\HmmMatching.csproj", "{6F2016E5-1B90-42B9-9434-F7E4BDF84279}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,9 +27,21 @@ Global
 		{2EBA4DA1-AA87-451F-BAAE-1344152A01CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2EBA4DA1-AA87-451F-BAAE-1344152A01CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2EBA4DA1-AA87-451F-BAAE-1344152A01CA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{83D2B89D-5B06-4E6D-9A15-FC45E936A9D1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{83D2B89D-5B06-4E6D-9A15-FC45E936A9D1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{83D2B89D-5B06-4E6D-9A15-FC45E936A9D1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{83D2B89D-5B06-4E6D-9A15-FC45E936A9D1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6F2016E5-1B90-42B9-9434-F7E4BDF84279}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F2016E5-1B90-42B9-9434-F7E4BDF84279}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6F2016E5-1B90-42B9-9434-F7E4BDF84279}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6F2016E5-1B90-42B9-9434-F7E4BDF84279}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{83D2B89D-5B06-4E6D-9A15-FC45E936A9D1} = {1E91317A-C9A6-45E2-8496-89F32D143290}
+		{6F2016E5-1B90-42B9-9434-F7E4BDF84279} = {1E91317A-C9A6-45E2-8496-89F32D143290}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {77186408-2589-4159-86B2-03429E375F53}

@@ -23,7 +23,7 @@ namespace HmmMatching
     {
         public static void Main(string[] args)
         {
-            var scoreFileName = @"C:\Users\azyob\Documents\Visual Studio 2017\Projects\PitchDetector\TrainingData\東京電機大学校歌.ust";
+            var scoreFileName = CommonUtils.GetTrainingFile("東京電機大学校歌.ust");
             var startState = CreateHmm(scoreFileName);
 
             //OutputGraphs(startState.Model);
@@ -34,7 +34,7 @@ namespace HmmMatching
             var prevNoteIndex = -1;
             var observationIndex = 0;
 
-            const string audioFileName = @"C:\Users\azyob\Documents\Visual Studio 2017\Projects\PitchDetector\TrainingData\校歌 2018-01-17 15-10-46.wav";
+            var audioFileName = CommonUtils.GetTrainingFile("校歌 2018-01-17 15-10-46.wav");
             foreach (var observation in ToObservations(LoadAudioFile(audioFileName, false)))
             {
                 tracker.InputObservation(observation);
@@ -46,7 +46,7 @@ namespace HmmMatching
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
                     if (note != null)
-                        Console.WriteLine("位置 {0} -> {1} ({2}, {3})", prevNoteIndex, currentNoteIndex, Utils.ToNoteName(note.NoteNumber % 12), note.Lyric);
+                        Console.WriteLine("位置 {0} -> {1} ({2}, {3})", prevNoteIndex, currentNoteIndex, CommonUtils.ToNoteName(note.NoteNumber % 12), note.Lyric);
                     else
                         Console.WriteLine("位置 {0} -> {1}", prevNoteIndex, currentNoteIndex);
                     Console.ResetColor();
@@ -295,7 +295,7 @@ namespace HmmMatching
                             {
                                 if (++i == checkCount)
                                 {
-                                    Console.WriteLine("{0}: SoundOff -> SoundOn ({1})", current.UnitIndex, Utils.ToNoteName((int)Math.Round(current.NormalizedPitch)));
+                                    Console.WriteLine("{0}: SoundOff -> SoundOn ({1})", current.UnitIndex, CommonUtils.ToNoteName((int)Math.Round(current.NormalizedPitch)));
                                     prev = current;
                                     yield return new PitchHmmEmission(prev.NormalizedPitch);
                                     goto SoundOn;
@@ -358,7 +358,7 @@ namespace HmmMatching
                             {
                                 if (++pitchCount == checkCount)
                                 {
-                                    Console.WriteLine("{0}: 音高 {1} -> {2}", current.UnitIndex, Utils.ToNoteName((int)Math.Round(prev.NormalizedPitch)), Utils.ToNoteName((int)Math.Round(current.NormalizedPitch)));
+                                    Console.WriteLine("{0}: 音高 {1} -> {2}", current.UnitIndex, CommonUtils.ToNoteName((int)Math.Round(prev.NormalizedPitch)), CommonUtils.ToNoteName((int)Math.Round(current.NormalizedPitch)));
                                     prev = current;
                                     yield return new PitchHmmEmission(prev.NormalizedPitch);
                                     break;

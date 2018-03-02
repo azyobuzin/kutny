@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Accord.Math;
@@ -9,10 +10,7 @@ namespace Kutny.Common
 {
     public static class McLeodPitchMethod
     {
-        /// <summary>
-        /// サンプル単位での基本周期を求める
-        /// </summary>
-        public static double? EstimateFundamentalDelay(ReadOnlySpan<float> samples)
+        public static double[] NormalizedSquareDifference(ReadOnlySpan<float> samples)
         {
             // ACF
             // 1. zero pad
@@ -47,15 +45,21 @@ namespace Kutny.Common
                 nsdf[i] = 2.0 * acf[i].Real / m;
             }
 
-            // ピーク検出
-            var maxCorrelation = 0.0;
+            return nsdf;
+        }
+
+        public static IReadOnlyList<PeakPoint> FindPeaks(IReadOnlyList<double> nsdf, out double maxCorrelation)
+        {
+            maxCorrelation = 0.0;
+            var count = nsdf.Count;
             var peaks = new List<PeakPoint>();
-            for (var i = 1; i < samples.Length; i++)
+
+            for (var i = 1; i < count; i++)
             {
                 if (nsdf[i] >= 0) continue; // 最初に負になるところまでスキップ
 
                 i++;
-                for (; i < samples.Length; i++)
+                for (; i < count; i++)
                 {
                     if (nsdf[i] > 0)
                     {
@@ -63,7 +67,7 @@ namespace Kutny.Common
                         var currentMax = nsdf[i];
                         i++;
 
-                        for (; i < samples.Length; i++)
+                        for (; i < count; i++)
                         {
                             if (nsdf[i] > currentMax)
                             {
@@ -77,8 +81,8 @@ namespace Kutny.Common
                             }
                         }
 
-                        var peak = currentMaxIndex < nsdf.Length - 1
-                            && Interporate(
+                        var peak = currentMaxIndex < count - 1
+                            && InterporateParabolically(
                                 currentMaxIndex - 1, nsdf[currentMaxIndex - 1],
                                 currentMaxIndex, currentMax,
                                 currentMaxIndex + 1, nsdf[currentMaxIndex + 1]
@@ -96,10 +100,23 @@ namespace Kutny.Common
                 break;
             }
 
+            return peaks;
+        }
+
+        /// <summary>
+        /// サンプル単位での基本周期を求める
+        /// </summary>
+        public static double? EstimateFundamentalDelay(ReadOnlySpan<float> samples)
+        {
+            var nsdf = NormalizedSquareDifference(samples);
+
+            // ピーク検出
+            var peaks = FindPeaks(nsdf, out var maxCorrelation);
+
             if (peaks.Count == 0) return null; // 推定失敗
 
             var threshold = maxCorrelation * 0.8;
-            var mainPeak = peaks.Find(x => x.Correlation >= threshold);
+            var mainPeak = peaks.First(x => x.Correlation >= threshold);
 
             return mainPeak.Delay;
         }
@@ -112,7 +129,7 @@ namespace Kutny.Common
         /// <summary>
         /// 2次関数として放物線補間して頂点の座標を求める
         /// </summary>
-        private static (double, double)? Interporate(double x1, double y1, double x2, double y2, double x3, double y3)
+        public static (double, double)? InterporateParabolically(double x1, double y1, double x2, double y2, double x3, double y3)
         {
             // y = ax^2 + bx + c として、 a, b, c を解く
             var x12 = x1 * x1;
@@ -132,7 +149,7 @@ namespace Kutny.Common
         }
 
         [StructLayout(LayoutKind.Auto)]
-        private struct PeakPoint
+        public struct PeakPoint
         {
             public double Delay { get; set; }
             public double Correlation { get; set; }

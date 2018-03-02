@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Accord.Math;
+using Kutny.Common;
 
 namespace HmmMatching
 {

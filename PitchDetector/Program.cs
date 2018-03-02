@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Threading;
 using Accord.Math;
+using Accord.Math.Transforms;
 using Accord.Statistics;
 using Kutny.Common;
 using NAudio.Wave;
@@ -34,7 +36,7 @@ namespace PitchDetector
 
         private static void Run()
         {
-            PitchGraph2();
+            BasicTest();
         }
 
         private static void BasicTest()
@@ -44,10 +46,10 @@ namespace PitchDetector
             var data = new float[windowSize];
 
             // 2.5sのところから1024サンプル取得してくる
-            using (var reader = new WaveFileReader(Path.Combine(CommonUtils.GetTrainingDataDirectory(), "あいうえお 2017-12-18 00-17-09.wav")))
+            using (var reader = new AudioFileReader(@"C:\Users\azyob\Documents\Jupyter\chroma\BEYOND THE STARLIGHT.wav"))
             {
                 var provider = reader.ToSampleProvider()
-                    .Skip(TimeSpan.FromSeconds(2.5))
+                    .Skip(TimeSpan.FromSeconds(5.2))
                     .ToMono();
 
                 rate = provider.WaveFormat.SampleRate;
@@ -60,12 +62,16 @@ namespace PitchDetector
                 }
             }
 
-            // 440Hz
-            //rate = 44100;
-            //for (var i = 0; i < samples; i++)
-            //{
-            //    data[i] = (float)Math.Sin(2 * Math.PI * 440 * i / rate);
-            //}
+            var fft = Array.ConvertAll(data, x => (Complex)x);
+            FourierTransform2.FFT(fft, FourierTransform.Direction.Forward);
+            var fftSeries = new LineSeries();
+            fftSeries.Points.AddRange(fft.Take(fft.Length / 2).Select((x, i) => new DataPoint(i, Math.Log(x.SquaredMagnitude()))));
+            ShowPlot(new PlotModel() { Title = "スペクトル", Series = { fftSeries } });
+
+            var nsdf = McLeodPitchMethod.NormalizedSquareDifference(data);
+            var series = new LineSeries();
+            series.Points.AddRange(nsdf.Select((x, i) => new DataPoint(i, x)));
+            ShowPlot(new PlotModel() { Title = "NSDF", Series = { series } });
 
             Console.WriteLine("{0} Hz", McLeodPitchMethod.EstimateFundamentalFrequency(rate, data));
         }

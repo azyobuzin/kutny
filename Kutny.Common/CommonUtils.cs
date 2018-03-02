@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 
@@ -42,6 +43,15 @@ namespace Kutny.Common
         public static int HzToMidiNote(double f)
         {
             return (int)Math.Round(69.0 + 12.0 * Math.Log(f / 440.0, 2.0));
+        }
+
+        private static readonly string[] s_noteNames = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+        public static string ToNoteName(int num) => s_noteNames[num % 12];
+
+        public static void Deconstruct<TKey, TValue>(this KeyValuePair<TKey, TValue> kvp, out TKey key, out TValue value)
+        {
+            key = kvp.Key;
+            value = kvp.Value;
         }
     }
 }

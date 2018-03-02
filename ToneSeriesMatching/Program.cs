@@ -16,12 +16,12 @@ namespace ToneSeriesMatching
     {
         public static void Main(string[] args)
         {
-            const string scoreFileName = @"C:\Users\azyob\Documents\Visual Studio 2017\Projects\PitchDetector\TrainingData\東京電機大学校歌.ust";
+            var scoreFileName = CommonUtils.GetTrainingFile("東京電機大学校歌.ust");
             var matcher = new CompoundToneSeriesMatcher(LoadUtauScript(scoreFileName).ToImmutableArray(), 3);
 
             var plots = new List<(int x, int y)>();
 
-            const string audioFileName = @"C:\Users\azyob\Documents\Visual Studio 2017\Projects\PitchDetector\TrainingData\校歌 2018-01-17 15-10-46.wav";
+            var audioFileName = CommonUtils.GetTrainingFile("校歌 2018-01-17 15-10-46.wav");
             foreach (var pitchUnit in FilterPitchUnits(LoadAudioFile(audioFileName, true)))
             {
                 var prev = matcher.CurrentNoteIndex;

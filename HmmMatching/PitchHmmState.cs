@@ -1,4 +1,6 @@
-﻿namespace HmmMatching
+﻿using Kutny.Common;
+
+namespace HmmMatching
 {
     public class PitchHmmState
     {
@@ -19,7 +21,7 @@
                 : string.Format(
                     "{0} {1} {2}",
                     this.ReportingNote.Index,
-                    this.IsSilentState ? "無" : Utils.ToNoteName(this.ReportingNote.NoteNumber % 12),
+                    this.IsSilentState ? "無" : CommonUtils.ToNoteName(this.ReportingNote.NoteNumber % 12),
                     this.ReportingNote.Lyric
                 );
         }

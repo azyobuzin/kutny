@@ -53,5 +53,17 @@ namespace Kutny.Common
             key = kvp.Key;
             value = kvp.Value;
         }
+
+        public static int FindIndex<T>(this IEnumerable<T> source, Func<T, bool> predicate)
+        {
+            var i = 0;
+            foreach (var element in source)
+            {
+                if (predicate(element)) return i;
+                i++;
+            }
+
+            return -1;
+        }
     }
 }

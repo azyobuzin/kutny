@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Accord.Controls;
@@ -39,11 +40,11 @@ namespace KeyEstimation
                     new[] { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" },
                     new[]
                     {
-                        result1.Divide(result1.Max()),
-                        result2.Divide(result2.Max()),
-                        result3.Divide(result3.Max()),
-                        result3.Divide(result3.Max()),
-                        result4.Divide(result4.Max())
+                        result1.Divide(result1.Sum()),
+                        result2.Divide(result2.Sum()),
+                        result3.Divide(result3.Sum()),
+                        result4.Divide(result4.Sum()),
+                        result5.Divide(result5.Sum())
                     }
                 )
                 .SetGraph(x =>
@@ -65,6 +66,8 @@ namespace KeyEstimation
 
         private static double[] Run(Func<ISampleProvider, double[]> action)
         {
+            double[] result;
+
             var audioFileName = CommonUtils.GetTrainingFile("校歌 2018-01-17 15-10-46.wav");
             //var audioFileName = @"C:\Users\azyob\Documents\Jupyter\chroma\irony.wav";
 
@@ -76,11 +79,17 @@ namespace KeyEstimation
                     ;
                 var sampleRate = provider.WaveFormat.SampleRate;
 
-                return action(provider);
+                var stopwatch = Stopwatch.StartNew();
+                result = action(provider);
+                stopwatch.Stop();
+
+                Console.WriteLine("{0} ms", stopwatch.Elapsed.Milliseconds);
             }
+
+            return result;
         }
 
-        private const int PitchWindowSize = 1024;
+        private const int PitchWindowSize = 4096;
 
         private static IEnumerable<double?> EnumeratePitch(ISampleProvider provider)
         {
@@ -237,6 +246,7 @@ namespace KeyEstimation
 
                 if (peaks.Count == 0) continue;
 
+                // 基本周波数までのピークをカウント
                 var threshold = peaks.Max(x => x.Correlation) * 0.8;
                 var endIndex = peaks.FindIndex(x => x.Correlation >= threshold);
 

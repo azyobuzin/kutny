@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
-using System.Threading;
+using System.Threading.Tasks;
 using Accord.Controls;
 using Accord.Math;
 using Accord.Math.Transforms;
@@ -16,55 +17,91 @@ namespace KeyEstimation
     {
         public static void Main(string[] args)
         {
-            var result1 = Run(provider =>
-            {
-                var result = new int[12];
-                var pitches = EnumeratePitch(provider).ToArray();
+            FindKeysInFiles();
+        }
 
-                foreach (var (chroma, time) in Filter(pitches, provider.WaveFormat.SampleRate))
+        private static (string, Func<ISampleProvider, double[]>)[] s_algorithms =
+        {
+            ("Pitch1", Pitch1),
+            ("Pitch2", Pitch2),
+            ("NSDF1", ChromaVectorFromNsdf),
+            ("NSDF2", ChromaVectorFromNsdf2),
+            ("PCP", PitchClassProfile),
+            ("HPCP", Hpcp),
+        };
+
+        private static void FindKeysInFiles()
+        {
+            var files = new[]
+            {
+                @"C:\Users\azyob\Documents\Jupyter\chroma\BEYOND THE STARLIGHT.wav",
+                @"C:\Users\azyob\Documents\Jupyter\chroma\BEYOND THE STARLIGHT2.wav",
+                @"C:\Users\azyob\Documents\Jupyter\chroma\irony.wav",
+                @"C:\Users\azyob\Documents\Jupyter\chroma\irony2.wav",
+                @"C:\Users\azyob\Documents\Jupyter\chroma\LoveDestiny.wav",
+                @"C:\Users\azyob\Documents\Jupyter\chroma\ONLY MY NOTE.wav",
+                @"C:\Users\azyob\Documents\Jupyter\chroma\きっと、また逢える….wav",
+                @"C:\Users\azyob\Documents\Jupyter\chroma\校歌.wav",
+                @"C:\Users\azyob\Documents\Jupyter\chroma\情熱ファンファンファーレ.wav",
+                @"C:\Users\azyob\Documents\Jupyter\chroma\負けないで.wav",
+            };
+
+            var results = new(int, KeyMode)[files.Length * s_algorithms.Length];
+
+            Parallel.For(0, results.Length, i =>
+            {
+                var file = files[i / s_algorithms.Length];
+                var algorithm = s_algorithms[i % s_algorithms.Length].Item2;
+
+                double[] chromaVector;
+                using (var reader = new AudioFileReader(file))
                 {
-                    //Console.WriteLine(CommonUtils.ToNoteName(chroma));
-                    result[chroma]++;
+                    var provider = reader.ToSampleProvider().ToMono();
+                    chromaVector = algorithm(provider);
                 }
 
-                return result.Select(x => (double)x).ToArray();
+                results[i] = KeyFinding.FindKey(chromaVector);
             });
 
-            var result2 = Run(Pitch2);
-            var result3 = Run(ChromaVectorFromNsdf);
-            var result4 = Run(ChromaVectorFromNsdf2);
-            var result5 = Run(PitchClassProfile);
+            Console.Write("ファイル");
+            Console.WriteLine(string.Concat(s_algorithms.Select(x => "," + x.Item1)));
+
+            for (var i = 0; i < files.Length; i++)
+            {
+                Console.Write("{0}", Path.GetFileName(files[i]));
+
+                for (var j = 0; j < s_algorithms.Length; j++)
+                {
+                    var (tonic, mode) = results[s_algorithms.Length * i + j];
+                    var s = "," + CommonUtils.ToNoteName(tonic);
+                    if (mode == KeyMode.Minor) s += "m";
+                    Console.Write(s);
+                }
+
+                Console.WriteLine();
+            }
+        }
+
+        private static void ChromaVectorGraph()
+        {
+            var results = s_algorithms.Select(x => Run(x.Item2)).ToArray();
+            var audioFileName = results[0].Item2;
 
             DataBarBox
                 .Show(
                     new[] { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" },
-                    new[]
-                    {
-                        result1.Divide(result1.Sum()),
-                        result2.Divide(result2.Sum()),
-                        result3.Divide(result3.Sum()),
-                        result4.Divide(result4.Sum()),
-                        result5.Divide(result5.Sum())
-                    }
+                    Array.ConvertAll(results, x => x.Item1.Divide(x.Item1.Sum()))
                 )
+                .SetTitle(audioFileName)
                 .SetGraph(x =>
                 {
-                    var labels = new[]
-                    {
-                        "Pitch",
-                        "Pitch2",
-                        "NSDF",
-                        "NSDF2",
-                        "PCP"
-                    };
-
-                    for (var i = 0; i < labels.Length; i++)
-                        x.CurveList[i].Label.Text = labels[i];
+                    for (var i = 0; i < s_algorithms.Length; i++)
+                        x.CurveList[i].Label.Text = s_algorithms[i].Item1;
                 })
                 .Hold();
         }
 
-        private static double[] Run(Func<ISampleProvider, double[]> action)
+        private static (double[], string) Run(Func<ISampleProvider, double[]> action)
         {
             double[] result;
 
@@ -83,10 +120,10 @@ namespace KeyEstimation
                 result = action(provider);
                 stopwatch.Stop();
 
-                Console.WriteLine("{0} ms", stopwatch.Elapsed.Milliseconds);
+                Console.WriteLine("{0} ms", stopwatch.Elapsed.TotalMilliseconds);
             }
 
-            return result;
+            return (result, Path.GetFileName(audioFileName));
         }
 
         private const int PitchWindowSize = 4096;
@@ -144,6 +181,20 @@ namespace KeyEstimation
 
                 i++;
             }
+        }
+
+        private static double[] Pitch1(ISampleProvider provider)
+        {
+            var result = new int[12];
+            var pitches = EnumeratePitch(provider).ToArray();
+
+            foreach (var (chroma, time) in Filter(pitches, provider.WaveFormat.SampleRate))
+            {
+                //Console.WriteLine(CommonUtils.ToNoteName(chroma));
+                result[chroma]++;
+            }
+
+            return result.Select(x => (double)x).ToArray();
         }
 
         private static double[] Pitch2(ISampleProvider provider)
@@ -302,6 +353,35 @@ namespace KeyEstimation
                     chromaVector[m] += 1;
                 }
             }
+        }
+
+        private static double[] Hpcp(ISampleProvider provider)
+        {
+            var samples = new float[1048576];
+            var readSamples = 0;
+
+            while (true)
+            {
+                var count = provider.Read(samples, readSamples, samples.Length - readSamples);
+                if (count == 0) break;
+                readSamples += count;
+                if (readSamples == samples.Length)
+                    Array.Resize(ref samples, readSamples * 2);
+            }
+
+            var hpcp = HarmonicPitchClassProfile.AverageHpcp(
+                new ReadOnlySpan<float>(samples, 0, readSamples),
+                provider.WaveFormat.SampleRate,
+                12,
+                estimateReferenceFrequency: true
+            );
+
+            // C を最初に持ってくる
+            var chromaVector = new double[12];
+            for (var i = 0; i < chromaVector.Length; i++)
+                chromaVector[i] = hpcp[(i + 3) % 12];
+
+            return chromaVector;
         }
     }
 }

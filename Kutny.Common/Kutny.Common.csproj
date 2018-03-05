@@ -35,6 +35,7 @@
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Buffer.cs" />
     <Compile Include="McLeodPitchMethod.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="CommonUtils.cs" />

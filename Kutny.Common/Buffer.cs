@@ -2,7 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 
-namespace ToneSeriesMatching
+namespace Kutny.Common
 {
     /// <summary>
     /// 件数上限付きリングバッファ

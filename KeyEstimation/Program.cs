@@ -17,7 +17,7 @@ namespace KeyEstimation
     {
         public static void Main(string[] args)
         {
-            FindKeysInFiles();
+            TimeStretch();
         }
 
         private static (string, Func<ISampleProvider, double[]>)[] s_algorithms =
@@ -126,7 +126,7 @@ namespace KeyEstimation
             return (result, Path.GetFileName(audioFileName));
         }
 
-        private const int PitchWindowSize = 4096;
+        private const int PitchWindowSize = 1024;
 
         private static IEnumerable<double?> EnumeratePitch(ISampleProvider provider)
         {
@@ -382,6 +382,36 @@ namespace KeyEstimation
                 chromaVector[i] = hpcp[(i + 3) % 12];
 
             return chromaVector;
+        }
+
+        private static void TimeStretch()
+        {
+            var audioFileName = CommonUtils.GetTrainingFile("校歌 2018-01-17 15-10-46.wav");
+
+            using (var reader = new AudioFileReader(audioFileName))
+            {
+                var provider = reader.ToSampleProvider().ToMono();
+                var timeStretcher = new PsolaWithMpm();
+                var samples = new float[4096];
+
+                using (var writer = new WaveFileWriter("timestretch.wav", new WaveFormat(provider.WaveFormat.SampleRate, 1)))
+                {
+                    while (true)
+                    {
+                        for (var readSamples = 0; readSamples < samples.Length;)
+                        {
+                            var count = provider.Read(samples, readSamples, samples.Length - readSamples);
+                            if (count == 0) return;
+                            readSamples += count;
+                        }
+
+                        var delay = McLeodPitchMethod.EstimateFundamentalDelay(samples);
+                        var result = timeStretcher.Stretch(samples, delay, 1.3);
+
+                        writer.WriteSamples(result, 0, result.Length);
+                    }
+                }
+            }
         }
     }
 }

@@ -422,7 +422,7 @@ namespace KeyEstimation
             {
                 var provider = reader.ToSampleProvider().ToMono();
                 const int nfft = 2048;
-                var pitchShifter = new PitchShifterWithPhaseVocoder(nfft);
+                var pitchShifter = new PitchShifterWithStft(nfft);
                 var samples = new float[nfft];
 
                 using (var writer = new WaveFileWriter("pitchshift.wav", new WaveFormat(provider.WaveFormat.SampleRate, 1)))

@@ -421,8 +421,9 @@ namespace KeyEstimation
             using (var reader = new AudioFileReader(audioFileName))
             {
                 var provider = reader.ToSampleProvider().ToMono();
-                var pitchShifter = new PitchShifter();
-                var samples = new float[1024];
+                const int nfft = 2048;
+                var pitchShifter = new PitchShifterWithPhaseVocoder(nfft);
+                var samples = new float[nfft];
 
                 using (var writer = new WaveFileWriter("pitchshift.wav", new WaveFormat(provider.WaveFormat.SampleRate, 1)))
                 {
@@ -435,8 +436,9 @@ namespace KeyEstimation
                             readSamples += count;
                         }
 
-                        var result = pitchShifter.ShiftPitch(samples, 1.3);
-                        writer.WriteSamples(result, 0, result.Length);
+                        var result = pitchShifter.InputFrame(samples, 1.2);
+                        if (result != null)
+                            writer.WriteSamples(result, 0, result.Length);
                     }
                 }
             }

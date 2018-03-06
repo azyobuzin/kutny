@@ -42,6 +42,7 @@
     <Compile Include="HarmonicPitchClassProfile.cs" />
     <Compile Include="KeyFinding.cs" />
     <Compile Include="PitchShifter.cs" />
+    <Compile Include="PitchShifterWithPhaseVocoder.cs" />
     <Compile Include="PsolaWithMpm.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

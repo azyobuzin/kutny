@@ -17,7 +17,7 @@ namespace KeyEstimation
     {
         public static void Main(string[] args)
         {
-            TimeStretch();
+            PitchShift();
         }
 
         private static (string, Func<ISampleProvider, double[]>)[] s_algorithms =
@@ -408,6 +408,34 @@ namespace KeyEstimation
                         var delay = McLeodPitchMethod.EstimateFundamentalDelay(samples);
                         var result = timeStretcher.Stretch(samples, delay, 1.3);
 
+                        writer.WriteSamples(result, 0, result.Length);
+                    }
+                }
+            }
+        }
+
+        private static void PitchShift()
+        {
+            var audioFileName = CommonUtils.GetTrainingFile("校歌 2018-01-17 15-10-46.wav");
+
+            using (var reader = new AudioFileReader(audioFileName))
+            {
+                var provider = reader.ToSampleProvider().ToMono();
+                var pitchShifter = new PitchShifter();
+                var samples = new float[1024];
+
+                using (var writer = new WaveFileWriter("pitchshift.wav", new WaveFormat(provider.WaveFormat.SampleRate, 1)))
+                {
+                    while (true)
+                    {
+                        for (var readSamples = 0; readSamples < samples.Length;)
+                        {
+                            var count = provider.Read(samples, readSamples, samples.Length - readSamples);
+                            if (count == 0) return;
+                            readSamples += count;
+                        }
+
+                        var result = pitchShifter.ShiftPitch(samples, 1.3);
                         writer.WriteSamples(result, 0, result.Length);
                     }
                 }

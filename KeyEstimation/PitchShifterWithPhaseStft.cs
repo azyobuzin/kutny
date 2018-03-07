@@ -10,7 +10,6 @@ namespace KeyEstimation
     {
         private readonly int _windowLength;
         private bool _isFirstInput = true;
-        private bool _isFirstVocoder = true;
 
         private readonly RaisedCosineWindow _window;
         private readonly Complex[] _fftBuffer;

@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using Kutny.WpfInfra;
 using Livet;
 using Livet.Commands;
-using UtagoeGui.Infrastructures;
 using UtagoeGui.Models;
 
 namespace UtagoeGui.ViewModels

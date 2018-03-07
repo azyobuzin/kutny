@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Immutable;
 using System.Windows;
+using Kutny.WpfInfra;
 using Livet.Commands;
 using Livet.EventListeners.WeakEvents;
-using UtagoeGui.Infrastructures;
 using UtagoeGui.Models;
 
 namespace UtagoeGui.ViewModels

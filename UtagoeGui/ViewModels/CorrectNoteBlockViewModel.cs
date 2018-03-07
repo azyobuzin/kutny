@@ -1,6 +1,6 @@
 ﻿using System.Windows;
+using Kutny.WpfInfra;
 using Livet.EventListeners.WeakEvents;
-using UtagoeGui.Infrastructures;
 using UtagoeGui.Models;
 
 namespace UtagoeGui.ViewModels

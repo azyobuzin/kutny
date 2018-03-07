@@ -1,13 +1,13 @@
 ﻿using System;
 
-namespace UtagoeGui.Infrastructures
+namespace Kutny.WpfInfra
 {
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = true, Inherited = false)]
-    public class ChangeCanExecuteWhenThisPropertyChangeAttribute : Attribute
+    public class ChangeCanExecuteWhenModelPropertyChangeAttribute : Attribute
     {
         public string[] DependentPropertyNames { get; }
 
-        public ChangeCanExecuteWhenThisPropertyChangeAttribute(params string[] dependentPropertyNames)
+        public ChangeCanExecuteWhenModelPropertyChangeAttribute(params string[] dependentPropertyNames)
         {
             this.DependentPropertyNames = dependentPropertyNames;
         }

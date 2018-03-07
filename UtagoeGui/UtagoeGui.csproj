@@ -71,11 +71,6 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Infrastructures\ChangeCanExecuteWhenThisPropertyChangeAttribute.cs" />
-    <Compile Include="Infrastructures\ChangeCanExecuteWhenModelPropertyChangeAttribute.cs" />
-    <Compile Include="Infrastructures\ChangeValueWhenModelPropertyChangeAttribute.cs" />
-    <Compile Include="Infrastructures\ValidationMethodAttribute.cs" />
-    <Compile Include="Infrastructures\ViewModel2.cs" />
     <Compile Include="Models\AppStore.cs" />
     <Compile Include="Models\CorrectNoteBlockModel.cs" />
     <Compile Include="Models\Logics.cs" />
@@ -86,7 +81,6 @@
     <Compile Include="Models\VoiceAnalysisResult.cs" />
     <Compile Include="Models\VoiceAnalyzer.cs" />
     <Compile Include="Models\VowelClassifierType.cs" />
-    <Compile Include="Infrastructures\NotificationObject2.cs" />
     <Compile Include="ViewModels\CorrectNoteBlockViewModel.cs" />
     <Compile Include="ViewModels\EditCorrectScoreWindowViewModel.cs" />
     <Compile Include="ViewModels\MainWindowViewModel.cs" />
@@ -141,6 +135,10 @@
     <ProjectReference Include="..\Kutny.Common\Kutny.Common.csproj">
       <Project>{9c9bc2bc-5956-4ee0-ab89-b5b7d5b68757}</Project>
       <Name>Kutny.Common</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Kutny.WpfInfra\Kutny.WpfInfra.csproj">
+      <Project>{8ff8f00c-afc5-4966-8770-45d816fc7050}</Project>
+      <Name>Kutny.WpfInfra</Name>
     </ProjectReference>
     <ProjectReference Include="..\PitchDetector\PitchDetector.csproj">
       <Project>{ae2069b9-9ac6-4df8-840c-6310f877a898}</Project>

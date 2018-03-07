@@ -1,6 +1,6 @@
 ﻿using System;
+using Kutny.WpfInfra;
 using PitchDetector;
-using UtagoeGui.Infrastructures;
 
 namespace UtagoeGui.Models
 {

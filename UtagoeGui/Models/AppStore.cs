@@ -1,7 +1,7 @@
 ﻿using System.Collections.Immutable;
 using System.ComponentModel;
+using Kutny.WpfInfra;
 using StatefulModel;
-using UtagoeGui.Infrastructures;
 
 namespace UtagoeGui.Models
 {

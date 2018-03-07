@@ -11,7 +11,7 @@ using Livet.Commands;
 using Livet.EventListeners;
 using Livet.EventListeners.WeakEvents;
 
-namespace UtagoeGui.Infrastructures
+namespace Kutny.WpfInfra
 {
     public abstract class ViewModel2 : NotificationObject2, IDisposable, INotifyDataErrorInfo
     {

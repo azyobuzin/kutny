@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Livet;
 
-namespace UtagoeGui.Infrastructures
+namespace Kutny.WpfInfra
 {
     public abstract class NotificationObject2 : NotificationObject
     {

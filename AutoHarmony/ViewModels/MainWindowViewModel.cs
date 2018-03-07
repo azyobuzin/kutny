@@ -1,5 +1,7 @@
-﻿using AutoHarmony.Models;
+﻿using System.Collections.Immutable;
+using AutoHarmony.Models;
 using Kutny.WpfInfra;
+using Livet.EventListeners.WeakEvents;
 
 namespace AutoHarmony.ViewModels
 {
@@ -15,6 +17,19 @@ namespace AutoHarmony.ViewModels
             this.Actions = model;
 
             this.EnableAutoPropertyChangedEvent(this.Store);
+
+            this.CompositeDisposable.Add(new PropertyChangedWeakEventListener(
+                this.Store,
+                (_, e) =>
+                {
+                    switch (e.PropertyName)
+                    {
+                        case nameof(IAppStore.RecoderProviders):
+                            this.RecoderProviders = ImmutableArray.CreateRange(this.Store.RecoderProviders, x => x.DisplayName);
+                            break;
+                    }
+                }
+            ));
         }
 
         #region プロパティ
@@ -32,25 +47,39 @@ namespace AutoHarmony.ViewModels
         [ChangeValueWhenModelPropertyChange(nameof(IAppStore.SignalPeak))]
         public float SignalPeak => this.Store.SignalPeak;
 
-        [ChangeCanExecuteWhenModelPropertyChange(nameof(IAppStore.IsKeyEstimationRunning))]
+        [ChangeValueWhenModelPropertyChange(nameof(IAppStore.IsKeyEstimationRunning))]
         public bool IsKeyEstimationRunning
         {
             get => this.Store.IsKeyEstimationRunning;
             set => this.Actions.EnableKeyEstimation(value);
         }
 
-        [ChangeCanExecuteWhenModelPropertyChange(nameof(IAppStore.IsUpperHarmonyEnabled))]
+        [ChangeValueWhenModelPropertyChange(nameof(IAppStore.IsUpperHarmonyEnabled))]
         public bool IsUpperHarmonyEnabled
         {
             get => this.Store.IsUpperHarmonyEnabled;
             set => this.Actions.EnableUpperHarmony(value);
         }
 
-        [ChangeCanExecuteWhenModelPropertyChange(nameof(IAppStore.IsLowerHarmonyEnabled))]
+        [ChangeValueWhenModelPropertyChange(nameof(IAppStore.IsLowerHarmonyEnabled))]
         public bool IsLowerHarmonyEnabled
         {
             get => this.Store.IsLowerHarmonyEnabled;
             set => this.Actions.EnableLowerHarmony(value);
+        }
+
+        private ImmutableArray<string> _recoderProviders = ImmutableArray<string>.Empty;
+        public ImmutableArray<string> RecoderProviders
+        {
+            get => this._recoderProviders;
+            private set => this.Set(ref this._recoderProviders, value);
+        }
+
+        [ChangeValueWhenModelPropertyChange(nameof(IAppStore.SelectedRecoderProviderIndex))]
+        public int SelectedRecoderProviderIndex
+        {
+            get => this.Store.SelectedRecoderProviderIndex;
+            set => this.Actions.SelectRecoderProvider(value);
         }
 
         #endregion

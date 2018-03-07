@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿using System.Collections.Immutable;
+using System.ComponentModel;
 using KeyEstimation;
 using Kutny.WpfInfra;
 
@@ -11,6 +12,8 @@ namespace AutoHarmony.Models
         bool IsKeyEstimationRunning { get; }
         bool IsUpperHarmonyEnabled { get; }
         bool IsLowerHarmonyEnabled { get; }
+        ImmutableArray<RecoderProvider> RecoderProviders { get; }
+        int SelectedRecoderProviderIndex { get; }
     }
 
     public class AppStore : NotificationObject2, IAppStore
@@ -48,6 +51,20 @@ namespace AutoHarmony.Models
         {
             get => this._isLowerHarmonyEnabled;
             set => this.Set(ref this._isLowerHarmonyEnabled, value);
+        }
+
+        private ImmutableArray<RecoderProvider> _recoderProviders = ImmutableArray<RecoderProvider>.Empty;
+        public ImmutableArray<RecoderProvider> RecoderProviders
+        {
+            get => this._recoderProviders;
+            set => this.Set(ref this._recoderProviders, value);
+        }
+
+        private int _selectedRecoderProviderIndex;
+        public int SelectedRecoderProviderIndex
+        {
+            get => this._selectedRecoderProviderIndex;
+            set => this.Set(ref this._selectedRecoderProviderIndex, value);
         }
     }
 }

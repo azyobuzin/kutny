@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:AutoHarmony.ViewModels"
         mc:Ignorable="d"
-        Title="AutoHarmony" Height="280" Width="430"
+        Title="AutoHarmony" Height="320" Width="430"
         Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"
         ResizeMode="CanMinimize"
         Loaded="Window_Loaded"
@@ -17,6 +17,8 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="36" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="36" />
             <RowDefinition Height="Auto" />
@@ -38,7 +40,9 @@
             <ProgressBar Grid.Column="3" Orientation="Vertical" Height="100" Maximum="1" Value="{Binding SignalPeak, Mode=OneWay}" />
         </Grid>
 
-        <Grid Grid.Row="3">
+        <ComboBox Grid.Row="3" Width="200" ItemsSource="{Binding RecoderProviders}" SelectedIndex="{Binding SelectedRecoderProviderIndex}" />
+
+        <Grid Grid.Row="5">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition />
                 <ColumnDefinition Width="100" />

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.ExceptionServices;
+using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
@@ -11,14 +12,14 @@ namespace AutoHarmony.Models
         private readonly ISampleProvider _monoSampleProvider;
         private readonly float _pan;
         private SmbPitchShiftingSampleProvider _pitchShiftProvider;
-        private readonly WaveOutEvent _waveOut;
+        private readonly WasapiOut _waveOut;
 
         public PitchShiftPlayer(WaveFormat waveFormat, float pan)
         {
             this._pan = pan;
             this._buffer = new BufferedWaveProvider(waveFormat) { DiscardOnBufferOverflow = true };
             this._monoSampleProvider = this._buffer.ToSampleProvider().ToMono();
-            this._waveOut = new WaveOutEvent();
+            this._waveOut = new WasapiOut(AudioClientShareMode.Shared, true, 100);
             this._waveOut.PlaybackStopped += this.WaveOutPlaybackStopped;
         }
 
@@ -29,7 +30,7 @@ namespace AutoHarmony.Models
 
             // ISampleProvider をつくる
             // SmbPitchShiftingSampleProvider は内部でバッファーを持っているので、使いまわせない
-            this._pitchShiftProvider = new SmbPitchShiftingSampleProvider(this._monoSampleProvider);
+            this._pitchShiftProvider = new SmbPitchShiftingSampleProvider(this._monoSampleProvider, 1024, 2, 1f);
             var provider = new PanningSampleProvider(this._pitchShiftProvider) { Pan = this._pan };
 
             this._waveOut.Init(provider);

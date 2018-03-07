@@ -1,8 +1,11 @@
 ﻿using System;
+using System.Collections.Immutable;
+using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using KeyEstimation;
 using Kutny.Common;
+using NAudio.CoreAudioApi;
 using NAudio.Wave;
 
 namespace AutoHarmony.Models
@@ -14,6 +17,7 @@ namespace AutoHarmony.Models
         void EnableKeyEstimation(bool enable);
         void EnableUpperHarmony(bool enable);
         void EnableLowerHarmony(bool enable);
+        void SelectRecoderProvider(int index);
     }
 
     public class AppModel : IAppActions
@@ -24,7 +28,7 @@ namespace AutoHarmony.Models
         private readonly AppStore _store = new AppStore();
         public IAppStore Store => this._store;
 
-        private WasapiLoopbackCapture _waveIn;
+        private IWaveIn _waveIn;
         private readonly SampleBuffer _sampleBuffer = new SampleBuffer();
         private readonly double[] _chromaVector = new double[12];
         private PitchShiftPlayer _upperHarmonyPlayer;
@@ -32,39 +36,14 @@ namespace AutoHarmony.Models
 
         public void Initialize()
         {
-            if (this._waveIn != null)
-                throw new InvalidOperationException();
-
-            this._waveIn = new WasapiLoopbackCapture();
-            this._waveIn.DataAvailable += this.WaveInDataAvailable;
-            this._waveIn.RecordingStopped += this.WaveInRecordingStopped;
-            this._waveIn.StartRecording();
-
-            var waveFormat = this._waveIn.WaveFormat;
-            this._upperHarmonyPlayer = new PitchShiftPlayer(waveFormat, 0.5f);
-            this._lowerHarmonyPlayer = new PitchShiftPlayer(waveFormat, -0.5f);
+            this.UpdateRecoderProviders();
+            this.SelectRecoderProvider(0);
         }
 
         public void Exit()
         {
-            if (this._waveIn != null)
-            {
-                // フォアグラウンドスレッドで録音しているので殺す必要がある
-                this._waveIn.Dispose();
-                this._waveIn = null;
-            }
-
-            if (this._upperHarmonyPlayer != null)
-            {
-                this._upperHarmonyPlayer.Dispose();
-                this._upperHarmonyPlayer = null;
-            }
-
-            if (this._lowerHarmonyPlayer != null)
-            {
-                this._lowerHarmonyPlayer.Dispose();
-                this._lowerHarmonyPlayer = null;
-            }
+            // フォアグラウンドスレッドで録音しているので殺す必要がある
+            this.DisposeAudioResources();
         }
 
         public void EnableKeyEstimation(bool enable)
@@ -131,7 +110,7 @@ namespace AutoHarmony.Models
 
                 // ピッチ検出バッファーにコピー
                 // TODO: offset のバグを報告する
-                var count = provider.Read(segment.Array, segment.Offset * 2, segment.Count);
+                var count = provider.Read(segment.Array, waveFormat.Channels == 2 ? segment.Offset * 2 : segment.Offset, segment.Count);
                 if (count != expectedSampleCount) throw new Exception();
 
                 // ピークを計算
@@ -239,6 +218,66 @@ namespace AutoHarmony.Models
                     }
                 }
             }
+        }
+
+        public void SelectRecoderProvider(int index)
+        {
+            this._store.SelectedRecoderProviderIndex = index;
+
+            this.DisposeAudioResources();
+
+            this._waveIn = this._store.RecoderProviders[index]
+                .CreateWaveIn();
+            this._waveIn.DataAvailable += this.WaveInDataAvailable;
+            this._waveIn.RecordingStopped += this.WaveInRecordingStopped;
+            this._waveIn.StartRecording();
+
+            var waveFormat = this._waveIn.WaveFormat;
+            this._upperHarmonyPlayer = new PitchShiftPlayer(waveFormat, 0.5f);
+            this._lowerHarmonyPlayer = new PitchShiftPlayer(waveFormat, -0.5f);
+        }
+
+        private void DisposeAudioResources()
+        {
+            if (this._waveIn != null)
+            {
+                this._waveIn.Dispose();
+                this._waveIn = null;
+            }
+
+            if (this._upperHarmonyPlayer != null)
+            {
+                this._upperHarmonyPlayer.Dispose();
+                this._upperHarmonyPlayer = null;
+            }
+
+            if (this._lowerHarmonyPlayer != null)
+            {
+                this._lowerHarmonyPlayer.Dispose();
+                this._lowerHarmonyPlayer = null;
+            }
+        }
+
+        private void UpdateRecoderProviders()
+        {
+            var devices = new MMDeviceEnumerator();
+            var builder = ImmutableArray.CreateBuilder<RecoderProvider>();
+
+            builder.Add(DefaultCaptureDeviceRecoderProvider.Default);
+
+            builder.AddRange(
+                devices.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active)
+                    .Select(x => new CaptureDeviceRecoderProvider(x))
+            );
+
+            builder.Add(DefaultRenderDeviceRecoderProvider.Default);
+
+            builder.AddRange(
+                devices.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active)
+                    .Select(x => new RenderDeviceRecoderProvider(x))
+            );
+
+            this._store.RecoderProviders = builder.ToImmutable();
         }
     }
 }

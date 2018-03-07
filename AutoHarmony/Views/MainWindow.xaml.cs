@@ -37,5 +37,21 @@ namespace AutoHarmony.Views
         {
             this.ViewModel.Exit();
         }
+
+        private void Window_KeyUp(object sender, KeyEventArgs e)
+        {
+            switch (e.Key)
+            {
+                case Key.K:
+                    this.ViewModel.ToggleKeyEstimation();
+                    break;
+                case Key.U:
+                    this.ViewModel.ToggleUpperHarmony();
+                    break;
+                case Key.L:
+                    this.ViewModel.ToggleLowerHarmony();
+                    break;
+            }
+        }
     }
 }

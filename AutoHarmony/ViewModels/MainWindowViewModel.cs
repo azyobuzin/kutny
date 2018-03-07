@@ -1,5 +1,6 @@
 ﻿using System.Collections.Immutable;
 using AutoHarmony.Models;
+using Kutny.Common;
 using Kutny.WpfInfra;
 using Livet.EventListeners.WeakEvents;
 
@@ -41,6 +42,26 @@ namespace AutoHarmony.ViewModels
             {
                 var key = this.Store.EstimatedKey;
                 return key.HasValue ? key.Value.ToString() : "--";
+            }
+        }
+
+        [ChangeValueWhenModelPropertyChange(nameof(IAppStore.EstimatedPitch))]
+        public string EstimatedNote
+        {
+            get
+            {
+                var pitch = this.Store.EstimatedPitch;
+                return pitch.HasValue ? CommonUtils.ToNoteName(CommonUtils.HzToMidiNote(pitch.Value)) : "--";
+            }
+        }
+
+        [ChangeValueWhenModelPropertyChange(nameof(IAppStore.EstimatedPitch))]
+        public string FundamentalFrequency
+        {
+            get
+            {
+                var pitch = this.Store.EstimatedPitch;
+                return pitch.HasValue ? pitch.Value.ToString("F1") + " Hz" : "--";
             }
         }
 

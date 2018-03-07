@@ -8,6 +8,7 @@ namespace AutoHarmony.Models
     public interface IAppStore : INotifyPropertyChanged
     {
         Key? EstimatedKey { get; }
+        double? EstimatedPitch { get; }
         float SignalPeak { get; }
         bool IsKeyEstimationRunning { get; }
         bool IsUpperHarmonyEnabled { get; }
@@ -23,6 +24,13 @@ namespace AutoHarmony.Models
         {
             get => this._estimatedKey;
             set => this.Set(ref this._estimatedKey, value);
+        }
+
+        private double? _estimatedPitch;
+        public double? EstimatedPitch
+        {
+            get => this._estimatedPitch;
+            set => this.Set(ref this._estimatedPitch, value);
         }
 
         private float _signalPeak;

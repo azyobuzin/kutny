@@ -64,14 +64,15 @@ namespace AutoHarmony.Models
         public void EnableUpperHarmony(bool enable)
         {
             if (this._store.IsUpperHarmonyEnabled == enable) return;
-            this._store.IsUpperHarmonyEnabled = enable;
 
             if (enable)
             {
                 this._upperHarmonyPlayer.Start();
+                this._store.IsUpperHarmonyEnabled = true;
             }
             else
             {
+                this._store.IsUpperHarmonyEnabled = false;
                 this._upperHarmonyPlayer.Stop();
             }
         }
@@ -79,14 +80,15 @@ namespace AutoHarmony.Models
         public void EnableLowerHarmony(bool enable)
         {
             if (this._store.IsLowerHarmonyEnabled == enable) return;
-            this._store.IsLowerHarmonyEnabled = enable;
 
             if (enable)
             {
                 this._lowerHarmonyPlayer.Start();
+                this._store.IsLowerHarmonyEnabled = true;
             }
             else
             {
+                this._store.IsLowerHarmonyEnabled = false;
                 this._lowerHarmonyPlayer.Stop();
             }
         }
@@ -165,6 +167,11 @@ namespace AutoHarmony.Models
                 }
             }
 
+            if (gotPitch)
+            {
+                this._store.EstimatedPitch = f0;
+            }
+
             if (gotPitch && this._store.IsKeyEstimationRunning)
             {
                 // キー推定
@@ -235,6 +242,12 @@ namespace AutoHarmony.Models
             var waveFormat = this._waveIn.WaveFormat;
             this._upperHarmonyPlayer = new PitchShiftPlayer(waveFormat, 0.5f);
             this._lowerHarmonyPlayer = new PitchShiftPlayer(waveFormat, -0.5f);
+
+            if (this._store.IsUpperHarmonyEnabled)
+                this._upperHarmonyPlayer.Start();
+
+            if (this._store.IsLowerHarmonyEnabled)
+                this._lowerHarmonyPlayer.Start();
         }
 
         private void DisposeAudioResources()

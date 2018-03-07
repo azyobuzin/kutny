@@ -65,6 +65,7 @@
     <Compile Include="Models\MemoryWaveProvider.cs" />
     <Compile Include="Models\PitchShiftPlayer.cs" />
     <Compile Include="Models\SampleBuffer.cs" />
+    <Compile Include="Models\StftPitchShiftingSampleProvider.cs" />
     <Compile Include="ViewModels\MainWindowViewModel.cs" />
     <Compile Include="Views\MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>

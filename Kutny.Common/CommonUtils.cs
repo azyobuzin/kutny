@@ -42,7 +42,24 @@ namespace Kutny.Common
 
         public static int HzToMidiNote(double f)
         {
-            return (int)Math.Round(69.0 + 12.0 * Math.Log(f / 440.0, 2.0));
+            return (int)Math.Round(HzToMidiNoteDouble(f));
+        }
+
+        public static double HzToMidiNoteDouble(double f)
+        {
+            return 69.0 + 12.0 * Math.Log(f / 440.0, 2.0);
+        }
+
+        public static int ToChromaIndex(int i)
+        {
+            var m = i % 12;
+            if (m < 0) m += 12;
+            return m;
+        }
+
+        public static double MidiNoteToHz(double d)
+        {
+            return Math.Pow(2.0, (d - 69.0) / 12.0) * 440.0;
         }
 
         private static readonly string[] s_noteNames = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };

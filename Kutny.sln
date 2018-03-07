@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kutny.WpfInfra", "Kutny.Wpf
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "自動ハモり", "自動ハモり", "{DF28B8BB-2638-4639-BF29-5E03B38C0523}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoHarmony", "AutoHarmony\AutoHarmony.csproj", "{A785D1B7-C84E-459D-A737-22F21F725622}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +57,10 @@ Global
 		{8FF8F00C-AFC5-4966-8770-45D816FC7050}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8FF8F00C-AFC5-4966-8770-45D816FC7050}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8FF8F00C-AFC5-4966-8770-45D816FC7050}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A785D1B7-C84E-459D-A737-22F21F725622}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A785D1B7-C84E-459D-A737-22F21F725622}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A785D1B7-C84E-459D-A737-22F21F725622}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A785D1B7-C84E-459D-A737-22F21F725622}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -63,6 +69,7 @@ Global
 		{83D2B89D-5B06-4E6D-9A15-FC45E936A9D1} = {1E91317A-C9A6-45E2-8496-89F32D143290}
 		{6F2016E5-1B90-42B9-9434-F7E4BDF84279} = {1E91317A-C9A6-45E2-8496-89F32D143290}
 		{2C0A071A-08C1-4062-B4CF-C8D6636F441C} = {DF28B8BB-2638-4639-BF29-5E03B38C0523}
+		{A785D1B7-C84E-459D-A737-22F21F725622} = {DF28B8BB-2638-4639-BF29-5E03B38C0523}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {77186408-2589-4159-86B2-03429E375F53}

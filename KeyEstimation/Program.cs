@@ -46,7 +46,7 @@ namespace KeyEstimation
                 @"C:\Users\azyob\Documents\Jupyter\chroma\負けないで.wav",
             };
 
-            var results = new(int, KeyMode)[files.Length * s_algorithms.Length];
+            var results = new Key[files.Length * s_algorithms.Length];
 
             Parallel.For(0, results.Length, i =>
             {
@@ -72,10 +72,7 @@ namespace KeyEstimation
 
                 for (var j = 0; j < s_algorithms.Length; j++)
                 {
-                    var (tonic, mode) = results[s_algorithms.Length * i + j];
-                    var s = "," + CommonUtils.ToNoteName(tonic);
-                    if (mode == KeyMode.Minor) s += "m";
-                    Console.Write(s);
+                    Console.Write("," + results[s_algorithms.Length * i + j].ToString());
                 }
 
                 Console.WriteLine();

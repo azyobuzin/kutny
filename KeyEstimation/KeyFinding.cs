@@ -36,7 +36,7 @@ namespace KeyEstimation
             }
         }
 
-        public static (int, KeyMode) FindKey(double[] chromaVector)
+        public static Key FindKey(double[] chromaVector)
         {
             if (chromaVector == null) throw new ArgumentNullException(nameof(chromaVector));
             if (chromaVector.Length != 12) throw new ArgumentException();
@@ -50,8 +50,8 @@ namespace KeyEstimation
 
             var argmax = correlations.ArgMax();
             return argmax < 12
-                ? (argmax, KeyMode.Major)
-                : (argmax - 12, KeyMode.Minor);
+                ? new Key(argmax, KeyMode.Major)
+                : new Key(argmax - 12, KeyMode.Minor);
         }
 
         private static double CorrelationCoefficient(double[] chromaVector, int transpose, KeyMode mode)

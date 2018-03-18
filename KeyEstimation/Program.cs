@@ -423,7 +423,7 @@ namespace KeyEstimation
                 const int stretchedTime = (int)(frameSize * 1.3);
                 const double minPitchMilliseconds = 2;
                 const double maxPitchMilliseconds = 10;
-                const double templateSizeMilliseconds = 5;
+                const double templateSizeMilliseconds = 2;
 
                 int MsToSamples(double ms) => (int)(provider.WaveFormat.SampleRate * (ms / 1000.0));
 
@@ -436,26 +436,26 @@ namespace KeyEstimation
                 var samples = new float[frameSize];
 
                 using (var writer = new WaveFileWriter("timestretch.wav", new WaveFormat(provider.WaveFormat.SampleRate, 1)))
-                using (var writer2 = new WaveFileWriter("nostretch.wav", new WaveFormat(provider.WaveFormat.SampleRate, 1)))
+                //using (var writer2 = new WaveFileWriter("nostretch.wav", new WaveFormat(provider.WaveFormat.SampleRate, 1)))
                 {
                     while (true)
                     {
-                        //for (var readSamples = 0; readSamples < samples.Length;)
-                        //{
-                        //    var count = provider.Read(samples, readSamples, samples.Length - readSamples);
-                        //    if (count == 0) return;
-                        //    readSamples += count;
-                        //}
+                        for (var readSamples = 0; readSamples < samples.Length;)
+                        {
+                            var count = provider.Read(samples, readSamples, samples.Length - readSamples);
+                            if (count == 0) return;
+                            readSamples += count;
+                        }
 
-                        for (var i = 0; i < samples.Length; i++)
-                            samples[i] = (float)Math.Cos(i / 50.0 * Math.PI);
+                        //for (var i = 0; i < samples.Length; i++)
+                        //    samples[i] = (float)Math.Cos(i / 50.0 * Math.PI);
 
                         var result = timeStretcher.Stretch(samples, stretchedTime);
 
                         writer.WriteSamples(result, 0, result.Length);
-                        writer2.WriteSamples(samples, 0, samples.Length);
+                        //writer2.WriteSamples(samples, 0, samples.Length);
 
-                        break;
+                        //break;
                     }
                 }
             }

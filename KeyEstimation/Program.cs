@@ -17,7 +17,7 @@ namespace KeyEstimation
     {
         public static void Main(string[] args)
         {
-            PitchShift();
+            TimeStretch2();
         }
 
         private static (string, Func<ISampleProvider, double[]>)[] s_algorithms =
@@ -406,6 +406,56 @@ namespace KeyEstimation
                         var result = timeStretcher.Stretch(samples, delay, 1.3);
 
                         writer.WriteSamples(result, 0, result.Length);
+                    }
+                }
+            }
+        }
+
+        private static void TimeStretch2()
+        {
+            var audioFileName = CommonUtils.GetTrainingFile("校歌 2018-01-17 15-10-46.wav");
+
+            using (var reader = new AudioFileReader(audioFileName))
+            {
+                var provider = reader.ToSampleProvider().ToMono()/*.Skip(TimeSpan.FromSeconds(7))*/;
+
+                const int frameSize = 1024;
+                const int stretchedTime = (int)(frameSize * 1.3);
+                const double minPitchMilliseconds = 2;
+                const double maxPitchMilliseconds = 10;
+                const double templateSizeMilliseconds = 5;
+
+                int MsToSamples(double ms) => (int)(provider.WaveFormat.SampleRate * (ms / 1000.0));
+
+                var timeStretcher = new TimeStretcherWithAutocorrelation(
+                    MsToSamples(minPitchMilliseconds),
+                    MsToSamples(maxPitchMilliseconds),
+                    MsToSamples(templateSizeMilliseconds)
+                );
+
+                var samples = new float[frameSize];
+
+                using (var writer = new WaveFileWriter("timestretch.wav", new WaveFormat(provider.WaveFormat.SampleRate, 1)))
+                using (var writer2 = new WaveFileWriter("nostretch.wav", new WaveFormat(provider.WaveFormat.SampleRate, 1)))
+                {
+                    while (true)
+                    {
+                        //for (var readSamples = 0; readSamples < samples.Length;)
+                        //{
+                        //    var count = provider.Read(samples, readSamples, samples.Length - readSamples);
+                        //    if (count == 0) return;
+                        //    readSamples += count;
+                        //}
+
+                        for (var i = 0; i < samples.Length; i++)
+                            samples[i] = (float)Math.Cos(i / 50.0 * Math.PI);
+
+                        var result = timeStretcher.Stretch(samples, stretchedTime);
+
+                        writer.WriteSamples(result, 0, result.Length);
+                        writer2.WriteSamples(samples, 0, samples.Length);
+
+                        break;
                     }
                 }
             }

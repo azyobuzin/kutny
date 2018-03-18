@@ -33,6 +33,8 @@ namespace KeyEstimation
         {
             if (input.Length == length) return input.ToArray();
 
+            var output = new float[length];
+
             // 自己相関が大きいキリのいい区切りを検出する
             var sections = new List<Section>();
 
@@ -75,17 +77,23 @@ namespace KeyEstimation
 
             if (sections.Count == 0)
             {
-                // 逃げ
-                throw new Exception("区切りが検出できませんでした。 input が小さすぎます。");
+                Debug.WriteLine("Warn: sections.Count == 0");
+                goto StartEndOverlap;
             }
 
             // 最後のセクションの終わりから、 input の終わりまでの間をねじ込みたいので、その分は neededLength から削る
             var lastSection = sections[sections.Count - 1];
-            var neededLength = length - (input.Length - lastSection.End);
+            var targetLength = length - (input.Length - lastSection.End);
+
+            if (targetLength < 0)
+            {
+                Debug.WriteLine("Warn: targetLength = {0}", targetLength);
+                goto StartEndOverlap;
+            }
 
             var sumOfSectionLength = sections.Sum(x => x.Length);
             // 各セクションを順番に並べるだけで良い回数
-            var firstFillCount = neededLength / sumOfSectionLength;
+            var firstFillCount = targetLength / sumOfSectionLength;
 
             var fillCount = new int[sections.Count];
             for (var i = 0; i < fillCount.Length; i++)
@@ -93,11 +101,10 @@ namespace KeyEstimation
 
             // 残りの時間の埋め方を探す
             var filledTime = sumOfSectionLength * firstFillCount;
-            foreach (var i in FillRemainingTime(sections, neededLength - filledTime, length - filledTime))
+            foreach (var i in FillRemainingTime(sections, targetLength - filledTime, length - filledTime))
                 fillCount[i]++;
 
             // 波形を作っていく
-            var output = new float[length];
             var lastCopiedSection = -1;
             filledTime = 0;
             for (var sectionIndex = 0; sectionIndex < sections.Count; sectionIndex++)
@@ -118,8 +125,17 @@ namespace KeyEstimation
                         else
                         {
                             // 前回コピーしたセクションの続きとオーバーラップする
-                            var prevSection = sections[lastCopiedSection];
-                            var prevSectionEnd = prevSection.Start + prevSection.Length;
+                            int prevSectionEnd;
+                            if (lastCopiedSection < 0)
+                            {
+                                // 一度もコピーされていないので、最初から
+                                prevSectionEnd = 0;
+                            }
+                            else
+                            {
+                                var prevSection = sections[lastCopiedSection];
+                                prevSectionEnd = prevSection.Start + prevSection.Length;
+                            }
 
                             // input が足りない場合があるので、考慮する
                             var overlapLength = Math.Min(section.Length, input.Length - prevSectionEnd);
@@ -144,7 +160,13 @@ namespace KeyEstimation
                 }
             }
 
-            Debug.WriteLine("filledTime: {0} / {1} ({2})", filledTime, neededLength, filledTime.CompareTo(neededLength));
+            if (filledTime == 0)
+            {
+                Debug.WriteLine("Warn: filledTime == 0");
+                goto StartEndOverlap;
+            }
+
+            Debug.WriteLine("filledTime: {0} / {1} ({2})", filledTime, targetLength, filledTime.CompareTo(targetLength));
 
             // 残りの部分を input の最後を使って埋める
             var remainingSamples = length - filledTime;
@@ -179,6 +201,18 @@ namespace KeyEstimation
                     var rate = (float)i / (overlapLength - 1);
                     output[startTime + i] = input[inputStart + i] * rate + output[startTime + i] * (1f - rate);
                 }
+            }
+
+            return output;
+
+            StartEndOverlap:
+            // うまくいかないので、開始と終わりをオーバーラップしてお茶を濁す
+            var copyLength = Math.Min(length, input.Length);
+            for (var i = 0; i < copyLength; i++)
+            {
+                var rate = (float)i / (length - 1); // copyLength ではなく length 基準で
+                output[i] += input[i] * rate;
+                output[output.Length - 1 - i] += input[input.Length - 1 - i] * rate;
             }
 
             return output;

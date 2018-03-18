@@ -427,7 +427,7 @@ namespace KeyEstimation
 
                 int MsToSamples(double ms) => (int)(provider.WaveFormat.SampleRate * (ms / 1000.0));
 
-                var timeStretcher = new TimeStretcherWithAutocorrelation(
+                var timeStretcher = new TimeStretcherWithAutocorrelation2(
                     MsToSamples(minPitchMilliseconds),
                     MsToSamples(maxPitchMilliseconds),
                     MsToSamples(templateSizeMilliseconds)
@@ -435,7 +435,7 @@ namespace KeyEstimation
 
                 var samples = new float[frameSize];
 
-                using (var writer = new WaveFileWriter("timestretch.wav", new WaveFormat(provider.WaveFormat.SampleRate, 1)))
+                using (var writer = new WaveFileWriter("timestretch2.wav", new WaveFormat(provider.WaveFormat.SampleRate, 1)))
                 //using (var writer2 = new WaveFileWriter("nostretch.wav", new WaveFormat(provider.WaveFormat.SampleRate, 1)))
                 {
                     while (true)

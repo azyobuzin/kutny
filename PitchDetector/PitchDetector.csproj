@@ -43,6 +43,7 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="LinearPrediction.cs" />
     <Compile Include="MfccAccord.cs" />
     <Compile Include="NeuralNetworkVowelClassifier.cs" />
     <Compile Include="Program.cs" />

@@ -659,20 +659,25 @@ namespace PitchDetector
 
             var fft = Array.ConvertAll(data, x => (Complex)x);
             FourierTransform2.FFT(fft, FourierTransform.Direction.Forward);
-            var fftSeries = new LineSeries();
+            var fftSeries = new LineSeries() { Title = "スペクトル" };
             for (var i = 0; i < fft.Length; i++)
                 fftSeries.Points.Add(new DataPoint(((double)rate / windowSize) * i, 20.0 * Math.Log10(fft[i].Magnitude)));
 
             var lpc = LinearPrediction.ForwardLinearPrediction(data, 24);
             var lpcSpec = LinearPrediction.FirFrequencyResponse(lpc.Coefficients, windowSize);
-            var lpcSeries = new LineSeries();
+            var lpcSeries = new LineSeries() { Title = "LPCの周波数特性" };
             for (var i = 0; i < lpcSpec.Length; i++)
                 lpcSeries.Points.Add(new DataPoint(((double)rate / windowSize) * i, 20.0 * Math.Log10(lpcSpec[i].Magnitude)));
 
             ShowPlot(new PlotModel()
             {
                 Title = "LPC",
-                Series = { fftSeries, lpcSeries }
+                Series = { fftSeries, lpcSeries },
+                Axes =
+                {
+                    new LinearAxis() { Position = AxisPosition.Bottom, Minimum = 0, Maximum = 10200, Title = "周波数 [Hz]" },
+                    new LinearAxis() { Position = AxisPosition.Left, Minimum = -60, Maximum = 60, Title = "振幅 [dB]" }
+                }
             });
         }
 

@@ -420,7 +420,8 @@ namespace KeyEstimation
                 var provider = reader.ToSampleProvider().ToMono()/*.Skip(TimeSpan.FromSeconds(7))*/;
 
                 const int frameSize = 1024;
-                const int stretchedTime = (int)(frameSize * 1.3);
+                const double stretchRate = 1.3;
+                const int stretchedTime = (int)(frameSize * stretchRate);
                 const double minPitchMilliseconds = 2;
                 const double maxPitchMilliseconds = 10;
                 const double templateSizeMilliseconds = 2;
@@ -436,6 +437,7 @@ namespace KeyEstimation
                 var samples = new float[frameSize];
 
                 using (var writer = new WaveFileWriter("timestretch2.wav", new WaveFormat(provider.WaveFormat.SampleRate, 1)))
+                using (var writerResample = new WaveFileWriter("timestretch2_resample.wav", new WaveFormat((int)(provider.WaveFormat.SampleRate * stretchRate), 1)))
                 //using (var writer2 = new WaveFileWriter("nostretch.wav", new WaveFormat(provider.WaveFormat.SampleRate, 1)))
                 {
                     while (true)
@@ -453,6 +455,7 @@ namespace KeyEstimation
                         var result = timeStretcher.Stretch(samples, stretchedTime);
 
                         writer.WriteSamples(result, 0, result.Length);
+                        writerResample.WriteSamples(result, 0, result.Length);
                         //writer2.WriteSamples(samples, 0, samples.Length);
 
                         //break;

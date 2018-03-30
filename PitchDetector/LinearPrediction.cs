@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Numerics;
 
 namespace PitchDetector
 {
@@ -53,6 +54,30 @@ namespace PitchDetector
             }
 
             return new LinearPredictionResult(coefficients, error);
+        }
+
+        public static Complex[] FirFrequencyResponse(ReadOnlySpan<float> coefficients, int length)
+        {
+            var result = new Complex[length];
+            var angleRate = 2.0 * Math.PI / length;
+
+            for (var i = 0; i < length; i++)
+            {
+                var x = Complex.Exp(-Complex.ImaginaryOne * (angleRate * i));
+                var y = (Complex)coefficients[0];
+
+                var xpow = Complex.One;
+
+                for (var j = 1; j < coefficients.Length; j++)
+                {
+                    xpow *= x;
+                    y += coefficients[j] * xpow;
+                }
+
+                result[i] = 1.0 / y;
+            }
+
+            return result;
         }
     }
 

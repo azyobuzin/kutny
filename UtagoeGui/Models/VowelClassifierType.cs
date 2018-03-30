@@ -5,5 +5,6 @@
         MfccSupportVectorMachine,
         MfccNeuralNetwork,
         MelSpectrumSupportVectorMachine,
+        LinearPrediction,
     }
 }

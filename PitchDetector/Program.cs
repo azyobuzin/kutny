@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Threading;
+using Accord.Audio.Windows;
 using Accord.Math;
 using Accord.Math.Transforms;
 using Accord.Statistics;
@@ -36,7 +37,7 @@ namespace PitchDetector
 
         private static void Run()
         {
-            LpcSpectrum();
+            LpcSpectrum2();
         }
 
         private static void BasicTest()
@@ -626,7 +627,7 @@ namespace PitchDetector
         {
             const int windowSize = 2048;
             int rate;
-            var data = new float[windowSize];
+            var rawData = new float[windowSize];
 
             using (var reader = new WaveFileReader(Path.Combine(CommonUtils.GetTrainingDataDirectory(), "あいうえお 2017-12-18 00-17-09.wav")))
             {
@@ -636,12 +637,24 @@ namespace PitchDetector
 
                 rate = provider.WaveFormat.SampleRate;
 
-                for (var readSamples = 0; readSamples < data.Length;)
+                for (var readSamples = 0; readSamples < rawData.Length;)
                 {
-                    var delta = provider.Read(data, readSamples, data.Length - readSamples);
+                    var delta = provider.Read(rawData, readSamples, rawData.Length - readSamples);
                     if (delta == 0) throw new EndOfStreamException();
                     readSamples += delta;
                 }
+            }
+
+            var data = new float[windowSize];
+            //var data = rawData;
+
+            // プリエンファシス → 窓関数
+            var windowFunc = RaisedCosineWindow.Hamming(windowSize);
+            data[0] = rawData[0] * windowFunc[0];
+            for (var i = 1; i < data.Length; i++)
+            {
+                var emphasized = rawData[i] - 0.97f * rawData[i - 1];
+                data[i] = emphasized * windowFunc[i];
             }
 
             var fft = Array.ConvertAll(data, x => (Complex)x);
@@ -651,7 +664,7 @@ namespace PitchDetector
                 fftSeries.Points.Add(new DataPoint(((double)rate / windowSize) * i, 20.0 * Math.Log10(fft[i].Magnitude)));
 
             var lpc = LinearPrediction.ForwardLinearPrediction(data, 24);
-            var lpcSpec = Freqz(lpc.Coefficients, windowSize);
+            var lpcSpec = LinearPrediction.FirFrequencyResponse(lpc.Coefficients, windowSize);
             var lpcSeries = new LineSeries();
             for (var i = 0; i < lpcSpec.Length; i++)
                 lpcSeries.Points.Add(new DataPoint(((double)rate / windowSize) * i, 20.0 * Math.Log10(lpcSpec[i].Magnitude)));
@@ -663,28 +676,120 @@ namespace PitchDetector
             });
         }
 
-        private static Complex[] Freqz(ReadOnlySpan<float> coefficients, int length)
+        private static void LpcSpectrum2()
         {
-            var result = new Complex[length];
-            var angleRate = 2.0 * Math.PI / length;
-
-            for (var i = 0; i < length; i++)
+            LineSeries CreateLpcSpectrum(string fileName, double startSecs)
             {
-                var x = Complex.Exp(-Complex.ImaginaryOne * (angleRate * i));
-                var y = (Complex)coefficients[0];
+                const int windowSize = 2048;
+                int rate;
+                var rawData = new float[windowSize];
 
-                var xpow = Complex.One;
-
-                for (var j = 1; j < coefficients.Length; j++)
+                using (var reader = new WaveFileReader(Path.Combine(CommonUtils.GetTrainingDataDirectory(), fileName)))
                 {
-                    xpow *= x;
-                    y += coefficients[j] * xpow;
+                    var provider = reader.ToSampleProvider()
+                        .Skip(TimeSpan.FromSeconds(startSecs))
+                        .ToMono();
+
+                    rate = provider.WaveFormat.SampleRate;
+
+                    for (var readSamples = 0; readSamples < rawData.Length;)
+                    {
+                        var delta = provider.Read(rawData, readSamples, rawData.Length - readSamples);
+                        if (delta == 0) throw new EndOfStreamException();
+                        readSamples += delta;
+                    }
                 }
 
-                result[i] = 1.0 / y;
+                var data = new float[windowSize];
+
+                // プリエンファシス → 窓関数
+                var windowFunc = RaisedCosineWindow.Hamming(windowSize);
+                data[0] = rawData[0] * windowFunc[0];
+                for (var i = 1; i < data.Length; i++)
+                {
+                    var emphasized = rawData[i] - 0.97f * rawData[i - 1];
+                    data[i] = emphasized * windowFunc[i];
+                }
+
+                var lpc = LinearPrediction.ForwardLinearPrediction(data, 24);
+                var lpcSpec = LinearPrediction.FirFrequencyResponse(lpc.Coefficients, windowSize);
+                var lpcSeries = new LineSeries();
+                for (var i = 0; i < lpcSpec.Length; i++)
+                    lpcSeries.Points.Add(new DataPoint(((double)rate / windowSize) * i, 20.0 * Math.Log10(lpcSpec[i].Magnitude)));
+
+                return lpcSeries;
             }
 
-            return result;
+            void ShowSpectrum(string title, params (string, double)[] inputs)
+            {
+                var model = new PlotModel()
+                {
+                    Title = title,
+                    Axes =
+                    {
+                        new LinearAxis() { Position = AxisPosition.Bottom, Minimum = 0, Maximum = 10000 }
+                    }
+                };
+
+                var i = 0;
+                foreach (var (fileName, secs) in inputs)
+                {
+                    var series = CreateLpcSpectrum(fileName, secs);
+                    series.Title = (++i).ToString();
+                    model.Series.Add(series);
+                }
+
+                ShowPlot(model);
+            }
+
+            ShowSpectrum(
+                "あ",
+                ("あいうえお 2017-12-18 00-17-09.wav", 2.5),
+                ("あいうえお 2018-01-20 16-48-52.wav", 3.5),
+                ("あいうえお 2018-01-20 16-48-52.wav", 9),
+                ("あいうえお 2018-01-20 16-48-52.wav", 13),
+                ("校歌 2018-01-17 15-10-46.wav", 9)
+            );
+
+            ShowSpectrum(
+                "い",
+                ("あいうえお 2017-12-18 00-17-09.wav", 5.7),
+                ("あいうえお 2018-01-20 16-48-52.wav", 20),
+                ("あいうえお 2018-01-20 16-48-52.wav", 24),
+                ("あいうえお 2018-01-20 16-48-52.wav", 29)
+            );
+
+            ShowSpectrum(
+                "う",
+                ("あいうえお 2017-12-18 00-17-09.wav", 9.8),
+                ("あいうえお 2018-01-20 16-48-52.wav", 34),
+                ("あいうえお 2018-01-20 16-48-52.wav", 37),
+                ("あいうえお 2018-01-20 16-48-52.wav", 41)
+            );
+
+            ShowSpectrum(
+                "え",
+                ("あいうえお 2017-12-18 00-17-09.wav", 13),
+                ("あいうえお 2018-01-20 16-48-52.wav", 46.5),
+                ("あいうえお 2018-01-20 16-48-52.wav", 49.5),
+                ("あいうえお 2018-01-20 16-48-52.wav", 53)
+            );
+
+            ShowSpectrum(
+                "お",
+                ("あいうえお 2017-12-18 00-17-09.wav", 17),
+                ("あいうえお 2018-01-20 16-48-52.wav", 57),
+                ("あいうえお 2018-01-20 16-48-52.wav", 60),
+                ("あいうえお 2018-01-20 16-48-52.wav", 63)
+            );
+
+            ShowSpectrum(
+                "ん",
+                ("あいうえお 2018-01-20 16-48-52.wav", 67),
+                ("あいうえお 2018-01-20 16-48-52.wav", 70),
+                ("あいうえお 2018-01-20 16-48-52.wav", 73.5),
+                ("あいうえお 2018-01-20 16-48-52.wav", 78)
+            );
         }
 
         public static void ShowPlot(PlotModel plot)

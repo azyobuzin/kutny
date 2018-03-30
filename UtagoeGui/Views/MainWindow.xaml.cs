@@ -148,6 +148,8 @@ namespace UtagoeGui.Views
         private void OnUpdatedScale()
         {
             var scrollRate = this.horizontalScrollBar.Value / this.horizontalScrollBar.Maximum;
+            if (double.IsNaN(scrollRate)) scrollRate = 0; // NaN になるということは Maximum が 0 だった
+
             var newMaximum = Math.Max(
                 0,
                 this.ViewModel.ScoreWidth - (this.mainContentGrid.ActualWidth - this.noteNamesGrid.ActualWidth)

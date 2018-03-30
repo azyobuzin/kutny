@@ -48,6 +48,15 @@ namespace UtagoeGui.Models
                     classifier.Learn();
                     return (VowelClassifier)classifier;
                 });
+
+            this._vowelClassifierTasks[VowelClassifierType.LinearPrediction] =
+                Task.Run(async () =>
+                {
+                    var classifier = new LpcVowelClassifier();
+                    await Task.WhenAll(trainingData.Select(classifier.AddTrainingDataAsync)).ConfigureAwait(false);
+                    classifier.Learn();
+                    return (VowelClassifier)classifier;
+                });
         }
 
         public async ValueTask<VoiceAnalysisResult> Analyze(VowelClassifierType classifierType, ISampleProvider provider)

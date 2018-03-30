@@ -23,6 +23,7 @@
                 <ComboBoxItem>SVM</ComboBoxItem>
                 <ComboBoxItem>Neural Network</ComboBoxItem>
                 <ComboBoxItem>Mel Spectrum SVM</ComboBoxItem>
+                <ComboBoxItem>LPC</ComboBoxItem>
             </ComboBox>
         </StackPanel>
 

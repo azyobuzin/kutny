@@ -23,12 +23,13 @@ namespace PitchDetector
 
             // 初期値
             var coefficients = new float[order + 1];
+            var swapCoefficients = new float[order + 1];
             coefficients[0] = 1;
             coefficients[1] = -autocorrelations[1] / autocorrelations[0];
 
             var error = autocorrelations[0] + autocorrelations[1] * coefficients[1];
 
-            for (var k = 1; k <= order; k++)
+            for (var k = 1; k < order; k++)
             {
                 // いい感じに埋め合わせるための係数 λ
                 var combinationCoefficient = 0f;
@@ -39,8 +40,13 @@ namespace PitchDetector
                 // A = U + λV による更新
                 for (var i = 0; i <= k + 1; i++)
                 {
-                    coefficients[i] += combinationCoefficient * coefficients[k + 1 - i];
+                    swapCoefficients[i] = coefficients[i] + combinationCoefficient * coefficients[k + 1 - i];
                 }
+
+                // インスタンス交換
+                var tmp = swapCoefficients;
+                swapCoefficients = coefficients;
+                coefficients = tmp;
 
                 // 誤差の更新
                 error *= 1f - combinationCoefficient * combinationCoefficient;

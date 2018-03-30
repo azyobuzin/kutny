@@ -36,7 +36,7 @@ namespace PitchDetector
 
         private static void Run()
         {
-            BasicTest();
+            LpcSpectrum();
         }
 
         private static void BasicTest()
@@ -620,6 +620,71 @@ namespace PitchDetector
             }
 
             BasicTest();
+        }
+
+        private static void LpcSpectrum()
+        {
+            const int windowSize = 2048;
+            int rate;
+            var data = new float[windowSize];
+
+            using (var reader = new WaveFileReader(Path.Combine(CommonUtils.GetTrainingDataDirectory(), "あいうえお 2017-12-18 00-17-09.wav")))
+            {
+                var provider = reader.ToSampleProvider()
+                    .Skip(TimeSpan.FromSeconds(2.5))
+                    .ToMono();
+
+                rate = provider.WaveFormat.SampleRate;
+
+                for (var readSamples = 0; readSamples < data.Length;)
+                {
+                    var delta = provider.Read(data, readSamples, data.Length - readSamples);
+                    if (delta == 0) throw new EndOfStreamException();
+                    readSamples += delta;
+                }
+            }
+
+            var fft = Array.ConvertAll(data, x => (Complex)x);
+            FourierTransform2.FFT(fft, FourierTransform.Direction.Forward);
+            var fftSeries = new LineSeries();
+            for (var i = 0; i < fft.Length; i++)
+                fftSeries.Points.Add(new DataPoint(((double)rate / windowSize) * i, 20.0 * Math.Log10(fft[i].Magnitude)));
+
+            var lpc = LinearPrediction.ForwardLinearPrediction(data, 24);
+            var lpcSpec = Freqz(lpc.Coefficients, windowSize);
+            var lpcSeries = new LineSeries();
+            for (var i = 0; i < lpcSpec.Length; i++)
+                lpcSeries.Points.Add(new DataPoint(((double)rate / windowSize) * i, 20.0 * Math.Log10(lpcSpec[i].Magnitude)));
+
+            ShowPlot(new PlotModel()
+            {
+                Title = "LPC",
+                Series = { fftSeries, lpcSeries }
+            });
+        }
+
+        private static Complex[] Freqz(ReadOnlySpan<float> coefficients, int length)
+        {
+            var result = new Complex[length];
+            var angleRate = 2.0 * Math.PI / length;
+
+            for (var i = 0; i < length; i++)
+            {
+                var x = Complex.Exp(-Complex.ImaginaryOne * (angleRate * i));
+                var y = (Complex)coefficients[0];
+
+                var xpow = Complex.One;
+
+                for (var j = 1; j < coefficients.Length; j++)
+                {
+                    xpow *= x;
+                    y += coefficients[j] * xpow;
+                }
+
+                result[i] = 1.0 / y;
+            }
+
+            return result;
         }
 
         public static void ShowPlot(PlotModel plot)
